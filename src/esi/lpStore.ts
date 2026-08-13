@@ -33,35 +33,39 @@ export interface LpStoreRow {
 const BATCH_SIZE = 10;
 
 /**
- * Number of full exchanges' worth of items the market needs to be able to
- * absorb per day for an offer to be considered perfectly liquid.
+ * Amount of LP that can be reliably liquidated in one go (i.e. via existing
+ * buy orders within 5% of the best buy price, without waiting for the market
+ * to refill) for an offer to be considered perfectly liquid.
  */
-const TARGET_EXCHANGES_PER_DAY = 50;
+const TARGET_LP_LIQUIDATION = 200_000;
 
 /**
- * Rates an offer from 0 to 100, combining profitability (ISK/LP) with actual
- * market liquidity — how many full exchanges' worth of the resulting items
- * the market can absorb per day, regardless of how much LP a player intends
- * to spend. This is intentionally independent of LP cost: an offer with a
- * tiny daily trade volume is a poor liquidation mechanism no matter how
- * little LP is needed to produce it.
+ * Rates an offer from 0 to 100, combining profitability (ISK/LP when selling
+ * instantly into buy orders) with reliable liquidity — how much LP worth of
+ * the resulting items can actually be dumped into existing buy orders right
+ * now, without relying on sell orders (which may never be filled) or on
+ * average trading volume (which may take days to materialize).
  */
 function computeRecommendationFactor(
-  lpToIsk: number | null,
-  normalizedDailyVolume: number,
+  lpToIskBuy: number | null,
+  lpCost: number,
+  quantity: number,
+  buyOrderVolume: number,
 ): number {
-  if (lpToIsk === null) return 0;
+  if (lpToIskBuy === null || lpCost <= 0) return 0;
 
   // Profitability score: 0 ISK/LP or below -> 0, 1000+ ISK/LP -> 100.
-  const profitScore = Math.max(0, Math.min(1, lpToIsk / 1000)) * 100;
+  const profitScore = Math.max(0, Math.min(1, lpToIskBuy / 1000)) * 100;
   if (profitScore === 0) return 0;
 
-  // Liquidity score: scales up to a full multiplier once the market can
-  // absorb TARGET_EXCHANGES_PER_DAY exchanges per day, with diminishing
-  // returns below that.
+  // Liquidity score: how much LP worth of exchanges can be reliably sold in
+  // one go into the existing buy order book, scaled up to a full multiplier
+  // once it reaches TARGET_LP_LIQUIDATION, with diminishing returns below that.
+  const exchangesSellable = quantity > 0 ? buyOrderVolume / quantity : 0;
+  const lpSellableInOneGo = exchangesSellable * lpCost;
   const liquidityMultiplier = Math.max(
     0,
-    Math.min(1, Math.sqrt(normalizedDailyVolume / TARGET_EXCHANGES_PER_DAY)),
+    Math.min(1, Math.sqrt(lpSellableInOneGo / TARGET_LP_LIQUIDATION)),
   );
 
   return profitScore * liquidityMultiplier;
@@ -128,11 +132,6 @@ export async function fetchLpStoreRows(
               ? (sellRevenue - requiredIskCost) / offer.lp_cost
               : null;
 
-          const bestLpToIsk =
-            lpToIskSell !== null && lpToIskBuy !== null
-              ? Math.max(lpToIskSell, lpToIskBuy)
-              : (lpToIskSell ?? lpToIskBuy);
-
           return {
             offerId: offer.offer_id,
             typeName: typeInfoMap.get(offer.type_id)?.name ?? `Type ${offer.type_id}`,
@@ -155,7 +154,12 @@ export async function fetchLpStoreRows(
             lpToIskBuy,
             lpToIskSell,
             totalRequiredIskCost: requiredIskCost,
-            recommendationFactor: computeRecommendationFactor(bestLpToIsk, normalizedDailyVol),
+            recommendationFactor: computeRecommendationFactor(
+              lpToIskBuy,
+              offer.lp_cost,
+              offer.quantity,
+              depth.volume,
+            ),
           } satisfies LpStoreRow;
         } catch {
           return null;

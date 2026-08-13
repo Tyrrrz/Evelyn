@@ -114,8 +114,8 @@ function IskLpCell({
       </div>
       {depth && (
         <div className="text-xs text-zinc-500">
-          {fmt(depth.orderCount)} orders within 5%
-          {quantity > 1 && <> ({fmt(depth.volume / quantity, 2)}/exchange)</>}
+          {fmt(depth.volume)} items in {fmt(depth.orderCount)} orders (within 5%)
+          {quantity > 1 && <> — {fmt(Math.floor(depth.volume / quantity))} exchanges</>}
         </div>
       )}
     </td>
@@ -210,7 +210,7 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
               </Th>
               <Th
                 col="recommendationFactor"
-                title="Overall recommendation score (0–100) combining ISK/LP profitability with market liquidity (how many full exchanges' worth of items the market can absorb per day)"
+                title="Overall recommendation score (0–100) combining ISK/LP profitability from buy orders with how much LP worth of items can be reliably sold in one go into the existing buy order book"
                 {...thProps}
               >
                 Recommendation
