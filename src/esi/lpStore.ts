@@ -32,33 +32,37 @@ export interface LpStoreRow {
 
 const BATCH_SIZE = 10;
 
-/** Assumed amount of LP a typical player wants to spend in one sitting. */
-const TARGET_LP_BUDGET = 1_000_000;
+/**
+ * Number of full exchanges' worth of items the market needs to be able to
+ * absorb per day for an offer to be considered perfectly liquid.
+ */
+const TARGET_EXCHANGES_PER_DAY = 50;
 
 /**
- * Rates an offer from 0 to 100, combining profitability (ISK/LP) with
- * liquidity (how quickly the resulting items could realistically be sold on
- * the market, assuming a player redeems the offer enough times to spend
- * around `TARGET_LP_BUDGET` LP).
+ * Rates an offer from 0 to 100, combining profitability (ISK/LP) with actual
+ * market liquidity — how many full exchanges' worth of the resulting items
+ * the market can absorb per day, regardless of how much LP a player intends
+ * to spend. This is intentionally independent of LP cost: an offer with a
+ * tiny daily trade volume is a poor liquidation mechanism no matter how
+ * little LP is needed to produce it.
  */
 function computeRecommendationFactor(
   lpToIsk: number | null,
-  lpCost: number,
-  quantity: number,
-  dailyVolume: number,
+  normalizedDailyVolume: number,
 ): number {
-  if (lpToIsk === null || lpCost <= 0) return 0;
+  if (lpToIsk === null) return 0;
 
   // Profitability score: 0 ISK/LP or below -> 0, 1000+ ISK/LP -> 100.
   const profitScore = Math.max(0, Math.min(1, lpToIsk / 1000)) * 100;
   if (profitScore === 0) return 0;
 
-  // Liquidity score: how many days of average volume it would take to sell
-  // everything produced by spending TARGET_LP_BUDGET worth of LP on this offer.
-  const exchangesForBudget = TARGET_LP_BUDGET / lpCost;
-  const totalQuantityProduced = exchangesForBudget * quantity;
-  const daysToSell = dailyVolume > 0 ? totalQuantityProduced / dailyVolume : Infinity;
-  const liquidityMultiplier = daysToSell <= 1 ? 1 : 1 / Math.sqrt(daysToSell);
+  // Liquidity score: scales up to a full multiplier once the market can
+  // absorb TARGET_EXCHANGES_PER_DAY exchanges per day, with diminishing
+  // returns below that.
+  const liquidityMultiplier = Math.max(
+    0,
+    Math.min(1, Math.sqrt(normalizedDailyVolume / TARGET_EXCHANGES_PER_DAY)),
+  );
 
   return profitScore * liquidityMultiplier;
 }
@@ -151,12 +155,7 @@ export async function fetchLpStoreRows(
             lpToIskBuy,
             lpToIskSell,
             totalRequiredIskCost: requiredIskCost,
-            recommendationFactor: computeRecommendationFactor(
-              bestLpToIsk,
-              offer.lp_cost,
-              offer.quantity,
-              dailyVol,
-            ),
+            recommendationFactor: computeRecommendationFactor(bestLpToIsk, normalizedDailyVol),
           } satisfies LpStoreRow;
         } catch {
           return null;

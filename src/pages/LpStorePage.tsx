@@ -35,6 +35,10 @@ export function LpStorePage() {
     setSelectedCorp(corp);
     setQuery(corp.name);
     setSuggestions([]);
+    await loadLpStoreData(corp);
+  };
+
+  const loadLpStoreData = async (corp: Corporation) => {
     setLoading(true);
     setProgress(null);
     setError(null);
@@ -52,6 +56,10 @@ export function LpStorePage() {
       setLoading(false);
       setProgress(null);
     }
+  };
+
+  const handleRefresh = () => {
+    if (selectedCorp) void loadLpStoreData(selectedCorp);
   };
 
   return (
@@ -72,14 +80,28 @@ export function LpStorePage() {
         {/* Corporation search */}
         <div className="relative mb-8 max-w-md">
           <label className="mb-1 block text-sm font-medium text-zinc-400">NPC Corporation</label>
-          <input
-            type="text"
-            value={query}
-            onChange={handleQueryChange}
-            onKeyDown={handleQueryKeyDown}
-            placeholder="Search corporation name…"
-            className="w-full rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-          />
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={query}
+              onChange={handleQueryChange}
+              onKeyDown={handleQueryKeyDown}
+              placeholder="Search corporation name…"
+              className="w-full rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+            />
+            {selectedCorp && (
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={loading}
+                title="Refresh LP store data"
+                aria-label="Refresh LP store data"
+                className="shrink-0 rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 hover:bg-zinc-700 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                ⟳
+              </button>
+            )}
+          </div>
           {suggestions.length > 0 && (
             <ul className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded border border-zinc-700 bg-zinc-800 shadow-lg">
               {suggestions.map((c) => (

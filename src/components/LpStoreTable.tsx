@@ -148,8 +148,8 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
   return (
     <>
       <div className="mb-2 flex flex-wrap items-center gap-4 text-xs text-zinc-500">
-        <span>{sorted.length} offers · prices from Jita (The Forge), 5% method</span>
-        {fetchedAt && <span>Fetched at {fetchedAt.toLocaleString()}</span>}
+        <span>{sorted.length} offers</span>
+        {fetchedAt && <span>Data fetched at {fetchedAt.toLocaleString()}</span>}
       </div>
       <div className="mb-4 flex flex-wrap items-center gap-4 text-sm">
         <label className="flex items-center gap-2 text-zinc-300">
@@ -203,14 +203,14 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
               </Th>
               <Th
                 col="normalizedDailyVolume"
-                title="Average daily volume traded in Jita (last 30 days, 5% method). For exchanges giving more than 1 item, the number in parentheses is that volume divided by the exchange quantity — i.e. how many full exchanges could be sold per day"
+                title="Average daily volume traded in Jita (last 30 days, 5% method), followed by the normalized volume — that volume divided by the exchange quantity, i.e. how many full exchanges could be sold per day (rounded down)"
                 {...thProps}
               >
                 Daily Volume
               </Th>
               <Th
                 col="recommendationFactor"
-                title="Overall recommendation score (0–100) combining ISK/LP profitability with market liquidity, assuming a typical player spends around 1M LP on this exchange"
+                title="Overall recommendation score (0–100) combining ISK/LP profitability with market liquidity (how many full exchanges' worth of items the market can absorb per day)"
                 {...thProps}
               >
                 Recommendation
@@ -226,7 +226,7 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
                     {row.requiredItems.length > 0 ? (
                       <details>
                         <summary className="cursor-pointer list-inside marker:text-zinc-500">
-                          {row.quantity > 1 ? `${fmt(row.quantity)}× ` : ""}
+                          {row.quantity > 1 ? `${fmt(row.quantity)} × ` : ""}
                           {row.typeName}
                         </summary>
                         <ul className="mt-1 ml-4 text-xs font-normal text-zinc-400">
@@ -239,7 +239,7 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
                       </details>
                     ) : (
                       <>
-                        {row.quantity > 1 ? `${fmt(row.quantity)}× ` : ""}
+                        {row.quantity > 1 ? `${fmt(row.quantity)} × ` : ""}
                         {row.typeName}
                       </>
                     )}
@@ -267,12 +267,11 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
                     quantity={row.quantity}
                   />
                   <td className="px-3 py-2 text-zinc-300 tabular-nums">
-                    {fmt(Math.round(row.dailyVolume))}
+                    <div>{fmt(Math.round(row.dailyVolume))}</div>
                     {row.quantity > 1 && (
-                      <span className="text-zinc-500">
-                        {" "}
-                        ({fmt(row.normalizedDailyVolume, 2)}/exchange)
-                      </span>
+                      <div className="text-xs text-zinc-500">
+                        {fmt(Math.floor(row.normalizedDailyVolume))}
+                      </div>
                     )}
                   </td>
                   <td
