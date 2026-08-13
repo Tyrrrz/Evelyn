@@ -24,6 +24,12 @@ export function LpStorePage() {
     setSuggestions(searchCorporations(val));
   };
 
+  const handleQueryKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && suggestions.length > 0) {
+      selectCorp(suggestions[0]);
+    }
+  };
+
   const selectCorp = async (corp: Corporation) => {
     setSelectedCorp(corp);
     setQuery(corp.name);
@@ -67,6 +73,7 @@ export function LpStorePage() {
             type="text"
             value={query}
             onChange={handleQueryChange}
+            onKeyDown={handleQueryKeyDown}
             placeholder="Search corporation name…"
             className="w-full rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:ring-2 focus:ring-amber-500 focus:outline-none"
           />

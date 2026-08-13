@@ -8,7 +8,6 @@ type SortKey = keyof Pick<
   | "normalizedDailyVolume"
   | "lpToIskBuy"
   | "lpToIskSell"
-  | "quantity"
   | "recommendationFactor"
 >;
 
@@ -125,9 +124,9 @@ export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
   return (
     <>
       <div className="mb-2 text-xs text-zinc-500">
-        {sorted.length} offers · prices from Jita (The Forge) ·{" "}
-        <span className="text-zinc-400">Sell = lowest sell order</span>,{" "}
-        <span className="text-zinc-400">Buy = highest buy order</span>
+        {sorted.length} offers · prices from Jita (The Forge), 5% method ·{" "}
+        <span className="text-zinc-400">Sell = lowest sell orders</span>,{" "}
+        <span className="text-zinc-400">Buy = highest buy orders</span>
       </div>
       <div className="overflow-x-auto rounded border border-zinc-800">
         <table className="min-w-full text-sm">
@@ -135,13 +134,10 @@ export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
             <tr>
               <Th
                 col="typeName"
-                title="Item received in exchange. Expand to see required items."
+                title="Item received in exchange (prefixed with quantity, if more than 1). Expand to see required items."
                 {...thProps}
               >
                 Item
-              </Th>
-              <Th col="quantity" title="Items received per exchange" {...thProps}>
-                Qty
               </Th>
               <Th
                 col="lpCost"
@@ -166,7 +162,7 @@ export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
               </Th>
               <Th
                 col="normalizedDailyVolume"
-                title="Average daily volume traded in Jita (last 30 days). The number in parentheses is that volume divided by the exchange quantity — i.e. how many full exchanges could be sold per day"
+                title="Average daily volume traded in Jita (last 30 days, 5% method). For exchanges giving more than 1 item, the number in parentheses is that volume divided by the exchange quantity — i.e. how many full exchanges could be sold per day"
                 {...thProps}
               >
                 Daily Volume
@@ -189,6 +185,7 @@ export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
                     {row.requiredItems.length > 0 ? (
                       <details>
                         <summary className="cursor-pointer list-inside marker:text-zinc-500">
+                          {row.quantity > 1 ? `${fmt(row.quantity)}× ` : ""}
                           {row.typeName}
                         </summary>
                         <ul className="mt-1 ml-4 text-xs font-normal text-zinc-400">
@@ -200,10 +197,12 @@ export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
                         </ul>
                       </details>
                     ) : (
-                      row.typeName
+                      <>
+                        {row.quantity > 1 ? `${fmt(row.quantity)}× ` : ""}
+                        {row.typeName}
+                      </>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-zinc-300">{fmt(row.quantity)}</td>
                   <td className="px-3 py-2 text-xs text-zinc-300">
                     <div>{fmt(row.lpCost)} LP</div>
                     {row.iskCost > 0 && (
@@ -216,10 +215,13 @@ export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
                   <IskLpCell ratio={row.lpToIskSell} bestPrice={row.bestSell} priceLabel="Sell" />
                   <IskLpCell ratio={row.lpToIskBuy} bestPrice={row.bestBuy} priceLabel="Buy" />
                   <td className="px-3 py-2 text-zinc-300 tabular-nums">
-                    {fmt(Math.round(row.dailyVolume))}{" "}
-                    <span className="text-zinc-500">
-                      ({fmt(row.normalizedDailyVolume, 2)}/exchange)
-                    </span>
+                    {fmt(Math.round(row.dailyVolume))}
+                    {row.quantity > 1 && (
+                      <span className="text-zinc-500">
+                        {" "}
+                        ({fmt(row.normalizedDailyVolume, 2)}/exchange)
+                      </span>
+                    )}
                   </td>
                   <td
                     className="px-3 py-2 font-semibold tabular-nums"

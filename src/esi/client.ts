@@ -118,16 +118,49 @@ export async function getTypeInfoBatch(typeIds: number[]): Promise<Map<number, T
   return new Map(results.map((t) => [t.type_id, t]));
 }
 
-/** Highest buy order price */
-export function bestBuyPrice(orders: MarketOrder[]): number | null {
-  const prices = orders.filter((o) => o.is_buy_order).map((o) => o.price);
-  return prices.length ? Math.max(...prices) : null;
+/**
+ * "5% method" price, as used by evetycoon/buzzwork: outlier orders are
+ * dropped first (buy orders below 10% of the highest buy price, or sell
+ * orders above 10x the lowest sell price — these usually exist to prey on
+ * careless players rather than reflect the real market), then the price is
+ * the volume-weighted average over the best 5% of the remaining volume.
+ */
+function fivePercentPrice(orders: MarketOrder[], isBuyOrder: boolean): number | null {
+  const side = orders
+    .filter((o) => o.is_buy_order === isBuyOrder)
+    .sort((a, b) => (isBuyOrder ? b.price - a.price : a.price - b.price));
+  if (!side.length) return null;
+
+  const bestPrice = side[0].price;
+  const filtered = side.filter((o) =>
+    isBuyOrder ? o.price >= bestPrice * 0.1 : o.price <= bestPrice * 10,
+  );
+
+  const totalVolume = filtered.reduce((s, o) => s + o.volume_remain, 0);
+  if (totalVolume <= 0) return bestPrice;
+
+  const targetVolume = totalVolume * 0.05;
+  let accumulatedVolume = 0;
+  let weightedSum = 0;
+  for (const o of filtered) {
+    const remainingNeeded = targetVolume - accumulatedVolume;
+    if (remainingNeeded <= 0) break;
+    const volumeToTake = Math.min(o.volume_remain, remainingNeeded);
+    weightedSum += o.price * volumeToTake;
+    accumulatedVolume += volumeToTake;
+  }
+
+  return accumulatedVolume > 0 ? weightedSum / accumulatedVolume : bestPrice;
 }
 
-/** Lowest sell order price */
+/** Highest buy order price, using the 5% method to filter out outliers */
+export function bestBuyPrice(orders: MarketOrder[]): number | null {
+  return fivePercentPrice(orders, true);
+}
+
+/** Lowest sell order price, using the 5% method to filter out outliers */
 export function bestSellPrice(orders: MarketOrder[]): number | null {
-  const prices = orders.filter((o) => !o.is_buy_order).map((o) => o.price);
-  return prices.length ? Math.min(...prices) : null;
+  return fivePercentPrice(orders, false);
 }
 
 /** Average daily volume over the last 30 days of market history */
