@@ -2,6 +2,7 @@ import {
   avgDailyVolume,
   bestBuyPrice,
   bestSellPrice,
+  buyOrderDepth,
   getLpOffers,
   getMarketHistory,
   getMarketOrders,
@@ -18,6 +19,9 @@ export interface LpStoreRow {
   quantity: number;
   bestBuy: number | null;
   bestSell: number | null;
+  buyOrderCount: number;
+  buyOrderVolume: number;
+  normalizedBuyOrderVolume: number;
   dailyVolume: number;
   normalizedDailyVolume: number;
   lpToIskBuy: number | null;
@@ -88,6 +92,7 @@ export async function fetchLpStoreRows(
 
           const buy = bestBuyPrice(orders);
           const sell = bestSellPrice(orders);
+          const depth = buy !== null ? buyOrderDepth(orders, buy) : { orderCount: 0, volume: 0 };
           const dailyVol = avgDailyVolume(history);
           const normalizedDailyVol = offer.quantity > 0 ? dailyVol / offer.quantity : 0;
 
@@ -138,6 +143,9 @@ export async function fetchLpStoreRows(
             quantity: offer.quantity,
             bestBuy: buy,
             bestSell: sell,
+            buyOrderCount: depth.orderCount,
+            buyOrderVolume: depth.volume,
+            normalizedBuyOrderVolume: offer.quantity > 0 ? depth.volume / offer.quantity : 0,
             dailyVolume: dailyVol,
             normalizedDailyVolume: normalizedDailyVol,
             lpToIskBuy,

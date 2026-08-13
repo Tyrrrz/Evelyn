@@ -26,6 +26,12 @@ function fmtIsk(n: number | null | undefined): string {
   return n.toFixed(2);
 }
 
+/** Formats an ISK/LP ratio without K/M/B abbreviation — LP values never get large enough to warrant it. */
+function fmtIskPerLp(n: number | null | undefined): string {
+  if (n === null || n === undefined) return "—";
+  return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+}
+
 function sortRows(rows: LpStoreRow[], key: SortKey, dir: SortDir): LpStoreRow[] {
   return [...rows].sort((a, b) => {
     const av = a[key] as number | string | null;
@@ -89,26 +95,38 @@ function IskLpCell({
   ratio,
   bestPrice,
   priceLabel,
+  depth,
+  quantity,
 }: {
   ratio: number | null;
   bestPrice: number | null;
   priceLabel: string;
+  depth?: { orderCount: number; volume: number };
+  quantity: number;
 }) {
   return (
     <td className="px-3 py-2 tabular-nums">
       <div className="font-semibold" style={{ color: ratioColor(ratio, 1000) }}>
-        {ratio !== null ? fmtIsk(ratio) + " ISK/LP" : "—"}
+        {ratio !== null ? fmtIskPerLp(ratio) + " ISK/LP" : "—"}
       </div>
       <div className="text-xs text-zinc-500">
         {priceLabel}: {fmtIsk(bestPrice)}
       </div>
+      {depth && (
+        <div className="text-xs text-zinc-500">
+          {fmt(depth.orderCount)} orders within 5%
+          {quantity > 1 && <> ({fmt(depth.volume / quantity, 2)}/exchange)</>}
+        </div>
+      )}
     </td>
   );
 }
 
-export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
+export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedAt: Date | null }) {
   const [sortKey, setSortKey] = useState<SortKey>("recommendationFactor");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [excludeRequiredItems, setExcludeRequiredItems] = useState(false);
+  const [nameFilter, setNameFilter] = useState("");
 
   const handleSort = (key: SortKey) => {
     if (key === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -118,15 +136,38 @@ export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
     }
   };
 
-  const sorted = sortRows(rows, sortKey, sortDir);
+  const filtered = rows.filter((row) => {
+    if (excludeRequiredItems && row.requiredItems.length > 0) return false;
+    if (nameFilter && !row.typeName.toLowerCase().includes(nameFilter.toLowerCase())) return false;
+    return true;
+  });
+
+  const sorted = sortRows(filtered, sortKey, sortDir);
   const thProps = { sortKey, sortDir, onSort: handleSort };
 
   return (
     <>
-      <div className="mb-2 text-xs text-zinc-500">
-        {sorted.length} offers · prices from Jita (The Forge), 5% method ·{" "}
-        <span className="text-zinc-400">Sell = lowest sell orders</span>,{" "}
-        <span className="text-zinc-400">Buy = highest buy orders</span>
+      <div className="mb-2 flex flex-wrap items-center gap-4 text-xs text-zinc-500">
+        <span>{sorted.length} offers · prices from Jita (The Forge), 5% method</span>
+        {fetchedAt && <span>Fetched at {fetchedAt.toLocaleString()}</span>}
+      </div>
+      <div className="mb-4 flex flex-wrap items-center gap-4 text-sm">
+        <label className="flex items-center gap-2 text-zinc-300">
+          <input
+            type="checkbox"
+            checked={excludeRequiredItems}
+            onChange={(e) => setExcludeRequiredItems(e.target.checked)}
+            className="rounded border-zinc-600 bg-zinc-800"
+          />
+          Exclude exchanges requiring other items
+        </label>
+        <input
+          type="text"
+          value={nameFilter}
+          onChange={(e) => setNameFilter(e.target.value)}
+          placeholder="Filter by item name…"
+          className="rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm text-zinc-100 placeholder-zinc-500 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+        />
       </div>
       <div className="overflow-x-auto rounded border border-zinc-800">
         <table className="min-w-full text-sm">
@@ -151,14 +192,14 @@ export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
                 title="(Sell revenue – total ISK costs) / LP cost — how much ISK each LP is worth if you sell the item"
                 {...thProps}
               >
-                ISK/LP (Sell)
+                Sell
               </Th>
               <Th
                 col="lpToIskBuy"
                 title="(Buy revenue – total ISK costs) / LP cost — how much ISK each LP is worth if you sell instantly into buy orders"
                 {...thProps}
               >
-                ISK/LP (Buy)
+                Buy
               </Th>
               <Th
                 col="normalizedDailyVolume"
@@ -209,11 +250,22 @@ export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
                       <div className="text-zinc-500">+ {fmtIsk(row.iskCost)} ISK</div>
                     )}
                     {otherIskCost > 0 && (
-                      <div className="text-zinc-500">+ {fmtIsk(otherIskCost)} ISK (items)</div>
+                      <div className="text-zinc-500">+ {fmtIsk(otherIskCost)} ISK in items</div>
                     )}
                   </td>
-                  <IskLpCell ratio={row.lpToIskSell} bestPrice={row.bestSell} priceLabel="Sell" />
-                  <IskLpCell ratio={row.lpToIskBuy} bestPrice={row.bestBuy} priceLabel="Buy" />
+                  <IskLpCell
+                    ratio={row.lpToIskSell}
+                    bestPrice={row.bestSell}
+                    priceLabel="Sell"
+                    quantity={row.quantity}
+                  />
+                  <IskLpCell
+                    ratio={row.lpToIskBuy}
+                    bestPrice={row.bestBuy}
+                    priceLabel="Buy"
+                    depth={{ orderCount: row.buyOrderCount, volume: row.buyOrderVolume }}
+                    quantity={row.quantity}
+                  />
                   <td className="px-3 py-2 text-zinc-300 tabular-nums">
                     {fmt(Math.round(row.dailyVolume))}
                     {row.quantity > 1 && (

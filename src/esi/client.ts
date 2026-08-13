@@ -163,6 +163,29 @@ export function bestSellPrice(orders: MarketOrder[]): number | null {
   return fivePercentPrice(orders, false);
 }
 
+export interface OrderDepth {
+  orderCount: number;
+  volume: number;
+}
+
+/** Counts buy orders (and their total remaining volume) priced within `pct` of `referencePrice`. */
+export function buyOrderDepth(
+  orders: MarketOrder[],
+  referencePrice: number,
+  pct = 0.05,
+): OrderDepth {
+  const within = orders.filter(
+    (o) =>
+      o.is_buy_order &&
+      o.price >= referencePrice * (1 - pct) &&
+      o.price <= referencePrice * (1 + pct),
+  );
+  return {
+    orderCount: within.length,
+    volume: within.reduce((s, o) => s + o.volume_remain, 0),
+  };
+}
+
 /** Average daily volume over the last 30 days of market history */
 export function avgDailyVolume(history: MarketHistoryEntry[]): number {
   const recent = history.slice(-30);

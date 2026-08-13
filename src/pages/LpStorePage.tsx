@@ -14,6 +14,7 @@ export function LpStorePage() {
   const [suggestions, setSuggestions] = useState<Corporation[]>([]);
   const [selectedCorp, setSelectedCorp] = useState<Corporation | null>(null);
   const [rows, setRows] = useState<LpStoreRow[]>([]);
+  const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,11 +39,13 @@ export function LpStorePage() {
     setProgress(null);
     setError(null);
     setRows([]);
+    setFetchedAt(null);
     try {
       const data = await fetchLpStoreRows(corp.corporation_id, (done, total) =>
         setProgress({ done, total }),
       );
       setRows(data);
+      setFetchedAt(new Date());
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
@@ -106,7 +109,7 @@ export function LpStorePage() {
 
         {error && <div className="mb-4 text-sm text-red-400">Error: {error}</div>}
 
-        {rows.length > 0 && <LpStoreTable rows={rows} />}
+        {rows.length > 0 && <LpStoreTable rows={rows} fetchedAt={fetchedAt} />}
 
         {!loading && selectedCorp && rows.length === 0 && !error && (
           <div className="text-sm text-zinc-500">
