@@ -229,7 +229,7 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
                   <td className="px-3 py-2 text-zinc-300 tabular-nums">
                     <div
                       className="font-semibold"
-                      style={{ color: ratioColor(row.dailyLpVolume, 200_000, 4_000_000) }}
+                      style={{ color: ratioColor(row.dailyLpVolume, 100_000, 1_000_000) }}
                     >
                       {row.dailyLpVolume !== null ? fmt(row.dailyLpVolume) + " LP" : "—"}
                     </div>
