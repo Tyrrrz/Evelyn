@@ -31,6 +31,21 @@ export interface LpStoreRow {
 
 const BATCH_SIZE = 10;
 
+function memoizeByTypeId<T>(
+  fetcher: (typeId: number) => Promise<T>,
+): (typeId: number) => Promise<T> {
+  const cache = new Map<number, Promise<T>>();
+
+  return (typeId) => {
+    const cached = cache.get(typeId);
+    if (cached) return cached;
+
+    const result = fetcher(typeId);
+    cache.set(typeId, result);
+    return result;
+  };
+}
+
 /**
  * Computes how much LP (and the resulting net ISK) can be immediately
  * liquidated by selling into the existing buy order book — walking the buy
@@ -67,6 +82,8 @@ export async function fetchLpStoreRows(
   onProgress?: (done: number, total: number) => void,
 ): Promise<LpStoreRow[]> {
   const offers = await getLpOffers(corporationId);
+  const getCachedMarketOrders = memoizeByTypeId(getMarketOrders);
+  const getCachedMarketHistory = memoizeByTypeId(getMarketHistory);
 
   // Resolve all type names in parallel
   const allTypeIds = new Set<number>();
@@ -85,8 +102,8 @@ export async function fetchLpStoreRows(
       batch.map(async (offer) => {
         try {
           const [orders, history] = await Promise.all([
-            getMarketOrders(offer.type_id),
-            getMarketHistory(offer.type_id),
+            getCachedMarketOrders(offer.type_id),
+            getCachedMarketHistory(offer.type_id),
           ]);
 
           const buy = bestBuyPrice(orders);
@@ -100,7 +117,7 @@ export async function fetchLpStoreRows(
           let requiredIskCost = offer.isk_cost;
           const reqItemMarkets = await Promise.all(
             offer.required_items.map(async (ri) => {
-              const riOrders = await getMarketOrders(ri.type_id);
+              const riOrders = await getCachedMarketOrders(ri.type_id);
               return {
                 type_id: ri.type_id,
                 quantity: ri.quantity,
