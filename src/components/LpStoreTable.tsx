@@ -85,7 +85,7 @@ function Th({
     >
       <button
         type="button"
-        className="flex w-full cursor-pointer select-none items-center justify-between gap-2"
+        className="flex w-full cursor-pointer items-center justify-between gap-2 select-none"
         onClick={() => onSort(col)}
       >
         <span>{children}</span>
