@@ -154,7 +154,8 @@ export async function fetchLpStoreRows(
             immediateLiquidityLp: immediateLiquidity.lp,
             immediateLiquidityIsk: immediateLiquidity.isk,
           } satisfies LpStoreRow;
-        } catch {
+        } catch (e) {
+          console.error("Failed to process LP offer", offer.offer_id, "type", offer.type_id, e);
           return null;
         }
       }),
