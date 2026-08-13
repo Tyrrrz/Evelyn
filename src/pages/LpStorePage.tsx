@@ -1,13 +1,12 @@
-import { useCallback, useRef, useState } from "react";
+import { useState } from "react";
+import { LpStoreTable } from "../components/LpStoreTable.tsx";
 import { searchCorporations } from "../esi/client.ts";
 import type { LpStoreRow } from "../esi/lpStore.ts";
 import { fetchLpStoreRows } from "../esi/lpStore.ts";
-import { LpStoreTable } from "../components/LpStoreTable.tsx";
 
 interface Corporation {
   corporation_id: number;
   name: string;
-  ticker: string;
 }
 
 export function LpStorePage() {
@@ -18,26 +17,11 @@ export function LpStorePage() {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const doSearch = useCallback(async (q: string) => {
-    if (!q.trim()) {
-      setSuggestions([]);
-      return;
-    }
-    try {
-      const corps = await searchCorporations(q);
-      setSuggestions(corps);
-    } catch {
-      setSuggestions([]);
-    }
-  }, []);
 
   const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setQuery(val);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => doSearch(val), 400);
+    setSuggestions(searchCorporations(val));
   };
 
   const selectCorp = async (corp: Corporation) => {
@@ -78,9 +62,7 @@ export function LpStorePage() {
       <main className="mx-auto max-w-screen-2xl px-6 py-6">
         {/* Corporation search */}
         <div className="relative mb-8 max-w-md">
-          <label className="mb-1 block text-sm font-medium text-zinc-400">
-            NPC Corporation
-          </label>
+          <label className="mb-1 block text-sm font-medium text-zinc-400">NPC Corporation</label>
           <input
             type="text"
             value={query}
@@ -93,11 +75,10 @@ export function LpStorePage() {
               {suggestions.map((c) => (
                 <li
                   key={c.corporation_id}
-                  className="flex cursor-pointer justify-between px-3 py-2 text-sm hover:bg-zinc-700"
+                  className="cursor-pointer px-3 py-2 text-sm hover:bg-zinc-700"
                   onClick={() => selectCorp(c)}
                 >
-                  <span>{c.name}</span>
-                  <span className="ml-4 text-zinc-500">[{c.ticker}]</span>
+                  {c.name}
                 </li>
               ))}
             </ul>
@@ -107,8 +88,7 @@ export function LpStorePage() {
         {/* Loading / progress */}
         {loading && (
           <div className="mb-4 text-sm text-zinc-400">
-            Loading LP store data for{" "}
-            <span className="text-zinc-100">{selectedCorp?.name}</span>…
+            Loading LP store data for <span className="text-zinc-100">{selectedCorp?.name}</span>…
             {progress && (
               <span className="ml-2 text-zinc-500">
                 ({progress.done}/{progress.total} offers processed)

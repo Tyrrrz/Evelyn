@@ -1,3 +1,5 @@
+import { NPC_CORPORATIONS } from "./npcCorporations.ts";
+
 const ESI_BASE = "https://esi.evetech.net/latest";
 
 // The Forge (Jita) region ID
@@ -6,7 +8,6 @@ const JITA_REGION_ID = 10000002;
 export interface Corporation {
   corporation_id: number;
   name: string;
-  ticker: string;
 }
 
 export interface LpOffer {
@@ -42,9 +43,7 @@ const typeInfoCache = new Map<number, TypeInfo>();
 
 async function esiGet<T>(path: string, cacheable = false): Promise<T> {
   const url = `${ESI_BASE}${path}`;
-  const init: RequestInit = cacheable
-    ? { cache: "default" }
-    : { cache: "no-store" };
+  const init: RequestInit = cacheable ? { cache: "default" } : { cache: "no-store" };
   const res = await fetch(url, {
     ...init,
     headers: { Accept: "application/json" },
@@ -74,25 +73,16 @@ async function esiGetAllPages<T>(path: string, extraSep = "&"): Promise<T[]> {
   return firstPage.concat(...rest);
 }
 
-export async function searchCorporations(query: string): Promise<Corporation[]> {
-  if (!query.trim()) return [];
-  const results = await esiGet<{ corporation?: number[] }>(
-    `/search/?categories=corporation&search=${encodeURIComponent(query)}&strict=false`,
-    true,
-  );
-  const ids = results.corporation ?? [];
-  if (ids.length === 0) return [];
-  const limited = ids.slice(0, 20);
-  const corps = await Promise.all(
-    limited.map((id) =>
-      esiGet<{ name: string; ticker: string }>(`/corporations/${id}/`, true).then((c) => ({
-        corporation_id: id,
-        name: c.name,
-        ticker: c.ticker,
-      })),
-    ),
-  );
-  return corps.sort((a, b) => a.name.localeCompare(b.name));
+/**
+ * Search NPC corporations by name against the hardcoded list (see npcCorporations.ts).
+ * The ESI search endpoint does not reliably return NPC corporations, so we search locally instead.
+ */
+export function searchCorporations(query: string): Corporation[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  return NPC_CORPORATIONS.filter((c) => c.name.toLowerCase().includes(q))
+    .map((c) => ({ corporation_id: c.corporationId, name: c.name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getLpOffers(corporationId: number): Promise<LpOffer[]> {
@@ -102,10 +92,7 @@ export async function getLpOffers(corporationId: number): Promise<LpOffer[]> {
 
 export async function getMarketOrders(typeId: number): Promise<MarketOrder[]> {
   // Market orders: always fresh
-  return esiGetAllPages<MarketOrder>(
-    `/markets/${JITA_REGION_ID}/orders/?type_id=${typeId}`,
-    "&",
-  );
+  return esiGetAllPages<MarketOrder>(`/markets/${JITA_REGION_ID}/orders/?type_id=${typeId}`, "&");
 }
 
 export async function getMarketHistory(typeId: number): Promise<MarketHistoryEntry[]> {
