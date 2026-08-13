@@ -8,7 +8,7 @@ type SortKey = keyof Pick<
   | "normalizedDailyVolume"
   | "lpToIskBuy"
   | "lpToIskSell"
-  | "recommendationFactor"
+  | "immediateLiquidityLp"
 >;
 
 type SortDir = "asc" | "desc";
@@ -95,14 +95,10 @@ function IskLpCell({
   ratio,
   bestPrice,
   priceLabel,
-  depth,
-  quantity,
 }: {
   ratio: number | null;
   bestPrice: number | null;
   priceLabel: string;
-  depth?: { orderCount: number; volume: number };
-  quantity: number;
 }) {
   return (
     <td className="px-3 py-2 tabular-nums">
@@ -112,18 +108,12 @@ function IskLpCell({
       <div className="text-xs text-zinc-500">
         {priceLabel}: {fmtIsk(bestPrice)}
       </div>
-      {depth && (
-        <div className="text-xs text-zinc-500">
-          {fmt(depth.volume)} items in {fmt(depth.orderCount)} orders (within 5%)
-          {quantity > 1 && <> — {fmt(Math.floor(depth.volume / quantity))} exchanges</>}
-        </div>
-      )}
     </td>
   );
 }
 
 export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedAt: Date | null }) {
-  const [sortKey, setSortKey] = useState<SortKey>("recommendationFactor");
+  const [sortKey, setSortKey] = useState<SortKey>("lpToIskBuy");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [excludeRequiredItems, setExcludeRequiredItems] = useState(false);
   const [nameFilter, setNameFilter] = useState("");
@@ -209,11 +199,11 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
                 Daily Volume
               </Th>
               <Th
-                col="recommendationFactor"
-                title="Overall recommendation score (0–100) combining ISK/LP profitability from buy orders with how much LP worth of items can be reliably sold in one go into the existing buy order book"
+                col="immediateLiquidityLp"
+                title="How much LP (and the resulting net ISK) can be liquidated right now by selling into the existing buy orders within 5% of the best buy price, filling only whole exchanges"
                 {...thProps}
               >
-                Recommendation
+                Immediate Liquidity
               </Th>
             </tr>
           </thead>
@@ -253,19 +243,8 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
                       <div className="text-zinc-500">+ {fmtIsk(otherIskCost)} ISK in items</div>
                     )}
                   </td>
-                  <IskLpCell
-                    ratio={row.lpToIskSell}
-                    bestPrice={row.bestSell}
-                    priceLabel="Sell"
-                    quantity={row.quantity}
-                  />
-                  <IskLpCell
-                    ratio={row.lpToIskBuy}
-                    bestPrice={row.bestBuy}
-                    priceLabel="Buy"
-                    depth={{ orderCount: row.buyOrderCount, volume: row.buyOrderVolume }}
-                    quantity={row.quantity}
-                  />
+                  <IskLpCell ratio={row.lpToIskSell} bestPrice={row.bestSell} priceLabel="Sell" />
+                  <IskLpCell ratio={row.lpToIskBuy} bestPrice={row.bestBuy} priceLabel="Buy" />
                   <td className="px-3 py-2 text-zinc-300 tabular-nums">
                     <div>{fmt(Math.round(row.dailyVolume))}</div>
                     {row.quantity > 1 && (
@@ -274,11 +253,16 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
                       </div>
                     )}
                   </td>
-                  <td
-                    className="px-3 py-2 font-semibold tabular-nums"
-                    style={{ color: ratioColor(row.recommendationFactor, 100) }}
-                  >
-                    {fmt(row.recommendationFactor, 1)}
+                  <td className="px-3 py-2 tabular-nums">
+                    <div
+                      className="font-semibold"
+                      style={{ color: ratioColor(row.immediateLiquidityLp, 1_000_000) }}
+                    >
+                      {fmt(row.immediateLiquidityLp)} LP
+                    </div>
+                    <div className="text-xs text-zinc-500">
+                      {fmtIsk(row.immediateLiquidityIsk)} ISK
+                    </div>
                   </td>
                 </tr>
               );

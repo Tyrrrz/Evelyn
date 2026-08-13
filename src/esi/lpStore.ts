@@ -2,7 +2,7 @@ import {
   avgDailyVolume,
   bestBuyPrice,
   bestSellPrice,
-  buyOrderDepth,
+  buyOrderLevels,
   getLpOffers,
   getMarketHistory,
   getMarketOrders,
@@ -19,56 +19,46 @@ export interface LpStoreRow {
   quantity: number;
   bestBuy: number | null;
   bestSell: number | null;
-  buyOrderCount: number;
-  buyOrderVolume: number;
-  normalizedBuyOrderVolume: number;
   dailyVolume: number;
   normalizedDailyVolume: number;
   lpToIskBuy: number | null;
   lpToIskSell: number | null;
   totalRequiredIskCost: number;
-  recommendationFactor: number;
+  immediateLiquidityLp: number;
+  immediateLiquidityIsk: number;
 }
 
 const BATCH_SIZE = 10;
 
 /**
- * Amount of LP that can be reliably liquidated in one go (i.e. via existing
- * buy orders within 5% of the best buy price, without waiting for the market
- * to refill) for an offer to be considered perfectly liquid.
+ * Computes how much LP (and the resulting net ISK) can be immediately
+ * liquidated by selling into the existing buy order book — walking the buy
+ * orders within 5% of the best buy price from highest to lowest, filling
+ * only whole exchanges (since partial exchanges can't be redeemed).
  */
-const TARGET_LP_LIQUIDATION = 200_000;
-
-/**
- * Rates an offer from 0 to 100, combining profitability (ISK/LP when selling
- * instantly into buy orders) with reliable liquidity — how much LP worth of
- * the resulting items can actually be dumped into existing buy orders right
- * now, without relying on sell orders (which may never be filled) or on
- * average trading volume (which may take days to materialize).
- */
-function computeRecommendationFactor(
-  lpToIskBuy: number | null,
+function computeImmediateLiquidity(
+  levels: { price: number; volume: number }[],
   lpCost: number,
   quantity: number,
-  buyOrderVolume: number,
-): number {
-  if (lpToIskBuy === null || lpCost <= 0) return 0;
+  requiredIskCostPerExchange: number,
+): { lp: number; isk: number } {
+  if (lpCost <= 0 || quantity <= 0) return { lp: 0, isk: 0 };
 
-  // Profitability score: 0 ISK/LP or below -> 0, 1000+ ISK/LP -> 100.
-  const profitScore = Math.max(0, Math.min(1, lpToIskBuy / 1000)) * 100;
-  if (profitScore === 0) return 0;
+  const totalVolume = levels.reduce((s, l) => s + l.volume, 0);
+  const exchanges = Math.floor(totalVolume / quantity);
+  if (exchanges <= 0) return { lp: 0, isk: 0 };
 
-  // Liquidity score: how much LP worth of exchanges can be reliably sold in
-  // one go into the existing buy order book, scaled up to a full multiplier
-  // once it reaches TARGET_LP_LIQUIDATION, with diminishing returns below that.
-  const exchangesSellable = quantity > 0 ? buyOrderVolume / quantity : 0;
-  const lpSellableInOneGo = exchangesSellable * lpCost;
-  const liquidityMultiplier = Math.max(
-    0,
-    Math.min(1, Math.sqrt(lpSellableInOneGo / TARGET_LP_LIQUIDATION)),
-  );
+  let itemsRemaining = exchanges * quantity;
+  let grossIsk = 0;
+  for (const level of levels) {
+    if (itemsRemaining <= 0) break;
+    const itemsTaken = Math.min(level.volume, itemsRemaining);
+    grossIsk += itemsTaken * level.price;
+    itemsRemaining -= itemsTaken;
+  }
 
-  return profitScore * liquidityMultiplier;
+  const netIsk = grossIsk - exchanges * requiredIskCostPerExchange;
+  return { lp: exchanges * lpCost, isk: netIsk };
 }
 
 export async function fetchLpStoreRows(
@@ -100,7 +90,7 @@ export async function fetchLpStoreRows(
 
           const buy = bestBuyPrice(orders);
           const sell = bestSellPrice(orders);
-          const depth = buy !== null ? buyOrderDepth(orders, buy) : { orderCount: 0, volume: 0 };
+          const levels = buy !== null ? buyOrderLevels(orders, buy) : [];
           const dailyVol = avgDailyVolume(history);
           const normalizedDailyVol = offer.quantity > 0 ? dailyVol / offer.quantity : 0;
 
@@ -132,6 +122,13 @@ export async function fetchLpStoreRows(
               ? (sellRevenue - requiredIskCost) / offer.lp_cost
               : null;
 
+          const immediateLiquidity = computeImmediateLiquidity(
+            levels,
+            offer.lp_cost,
+            offer.quantity,
+            requiredIskCost,
+          );
+
           return {
             offerId: offer.offer_id,
             typeName: typeInfoMap.get(offer.type_id)?.name ?? `Type ${offer.type_id}`,
@@ -146,20 +143,13 @@ export async function fetchLpStoreRows(
             quantity: offer.quantity,
             bestBuy: buy,
             bestSell: sell,
-            buyOrderCount: depth.orderCount,
-            buyOrderVolume: depth.volume,
-            normalizedBuyOrderVolume: offer.quantity > 0 ? depth.volume / offer.quantity : 0,
             dailyVolume: dailyVol,
             normalizedDailyVolume: normalizedDailyVol,
             lpToIskBuy,
             lpToIskSell,
             totalRequiredIskCost: requiredIskCost,
-            recommendationFactor: computeRecommendationFactor(
-              lpToIskBuy,
-              offer.lp_cost,
-              offer.quantity,
-              depth.volume,
-            ),
+            immediateLiquidityLp: immediateLiquidity.lp,
+            immediateLiquidityIsk: immediateLiquidity.isk,
           } satisfies LpStoreRow;
         } catch {
           return null;
