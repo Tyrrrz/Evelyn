@@ -78,12 +78,19 @@ function Th({
 }) {
   return (
     <th
-      className="cursor-pointer px-3 py-2 text-left text-xs font-semibold tracking-wide whitespace-nowrap uppercase transition-colors select-none hover:bg-zinc-700"
-      onClick={() => onSort(col)}
+      className="px-3 py-2 text-left text-xs font-semibold tracking-wide whitespace-nowrap uppercase transition-colors hover:bg-zinc-700"
       title={title}
+      scope="col"
+      aria-sort={col === sortKey ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
     >
-      {children}
-      <SortIcon active={col === sortKey} dir={sortDir} />
+      <button
+        type="button"
+        className="flex w-full cursor-pointer select-none items-center justify-between gap-2"
+        onClick={() => onSort(col)}
+      >
+        <span>{children}</span>
+        <SortIcon active={col === sortKey} dir={sortDir} />
+      </button>
     </th>
   );
 }
