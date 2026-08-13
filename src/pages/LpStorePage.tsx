@@ -105,12 +105,14 @@ export function LpStorePage() {
           {suggestions.length > 0 && (
             <ul className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded border border-zinc-700 bg-zinc-800 shadow-lg">
               {suggestions.map((c) => (
-                <li
-                  key={c.corporation_id}
-                  className="cursor-pointer px-3 py-2 text-sm hover:bg-zinc-700"
-                  onClick={() => selectCorp(c)}
-                >
-                  {c.name}
+                <li key={c.corporation_id}>
+                  <button
+                    type="button"
+                    className="w-full cursor-pointer px-3 py-2 text-left text-sm hover:bg-zinc-700"
+                    onClick={() => selectCorp(c)}
+                  >
+                    {c.name}
+                  </button>
                 </li>
               ))}
             </ul>
