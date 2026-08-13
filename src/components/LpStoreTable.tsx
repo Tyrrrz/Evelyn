@@ -5,7 +5,7 @@ type SortKey = keyof Pick<
   LpStoreRow,
   | "typeName"
   | "lpCost"
-  | "normalizedDailyVolume"
+  | "normalizedVolumePer1000Lp"
   | "lpToIskBuy"
   | "lpToIskSell"
   | "immediateLiquidityLp"
@@ -91,23 +91,13 @@ function Th({
   );
 }
 
-function IskLpCell({
-  ratio,
-  bestPrice,
-  priceLabel,
-}: {
-  ratio: number | null;
-  bestPrice: number | null;
-  priceLabel: string;
-}) {
+function IskLpCell({ ratio, bestPrice }: { ratio: number | null; bestPrice: number | null }) {
   return (
     <td className="px-3 py-2 tabular-nums">
       <div className="font-semibold" style={{ color: ratioColor(ratio, 1000) }}>
         {ratio !== null ? fmtIskPerLp(ratio) + " ISK/LP" : "—"}
       </div>
-      <div className="text-xs text-zinc-500">
-        {priceLabel}: {fmtIsk(bestPrice)}
-      </div>
+      <div className="text-xs text-zinc-500">{fmtIsk(bestPrice)} ISK</div>
     </td>
   );
 }
@@ -193,8 +183,8 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
                 Buy
               </Th>
               <Th
-                col="normalizedDailyVolume"
-                title="Average daily volume traded in Jita (last 30 days, 5% method), followed by the normalized volume — that volume divided by the exchange quantity, i.e. how many full exchanges could be sold per day (rounded down). Volume/LP (and Normalized Volume/LP, when the exchange quantity is more than 1) show that same volume divided by the LP cost, indicating how liquid the offer is relative to how much LP it takes to unlock it"
+                col="normalizedVolumePer1000Lp"
+                title="Volume normalized per 1000 LP — the daily volume (normalized by exchange quantity) per 1000 LP spent, indicating how liquid the offer is relative to how much LP it takes to unlock it. Followed by the normalized daily volume (that volume divided by the exchange quantity, i.e. how many full exchanges could be sold per day, rounded down) and the raw average daily volume traded in Jita (last 30 days, 5% method)"
                 {...thProps}
               >
                 Daily Volume
@@ -211,9 +201,6 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
           <tbody>
             {sorted.map((row, i) => {
               const otherIskCost = row.totalRequiredIskCost - row.iskCost;
-              const volumePerLp = row.lpCost > 0 ? row.dailyVolume / row.lpCost : null;
-              const normalizedVolumePerLp =
-                row.lpCost > 0 ? row.normalizedDailyVolume / row.lpCost : null;
               const showLiquidity = row.lpCost > 0 && row.immediateLiquidityIsk > 0;
               return (
                 <tr key={row.offerId} className={i % 2 === 0 ? "bg-zinc-950" : "bg-zinc-900"}>
@@ -248,31 +235,23 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
                       <div className="text-zinc-500">+ {fmtIsk(otherIskCost)} ISK in items</div>
                     )}
                   </td>
-                  <IskLpCell ratio={row.lpToIskSell} bestPrice={row.bestSell} priceLabel="Sell" />
-                  <IskLpCell ratio={row.lpToIskBuy} bestPrice={row.bestBuy} priceLabel="Buy" />
+                  <IskLpCell ratio={row.lpToIskSell} bestPrice={row.bestSell} />
+                  <IskLpCell ratio={row.lpToIskBuy} bestPrice={row.bestBuy} />
                   <td className="px-3 py-2 text-zinc-300 tabular-nums">
-                    <div>{fmt(Math.round(row.dailyVolume))}</div>
+                    <div
+                      className="font-semibold"
+                      style={{ color: ratioColor(row.normalizedVolumePer1000Lp, 50) }}
+                    >
+                      {row.normalizedVolumePer1000Lp !== null
+                        ? fmt(row.normalizedVolumePer1000Lp, 2) + " /1000 LP"
+                        : "—"}
+                    </div>
                     {row.quantity > 1 && (
                       <div className="text-xs text-zinc-500">
                         {fmt(Math.floor(row.normalizedDailyVolume))}
                       </div>
                     )}
-                    <div
-                      className="text-xs font-semibold"
-                      style={{ color: ratioColor(volumePerLp, 10) }}
-                    >
-                      {volumePerLp !== null ? fmt(volumePerLp, 2) + " /LP" : "—"}
-                    </div>
-                    {row.quantity > 1 && (
-                      <div
-                        className="text-xs font-semibold"
-                        style={{ color: ratioColor(normalizedVolumePerLp, 0.05) }}
-                      >
-                        {normalizedVolumePerLp !== null
-                          ? fmt(normalizedVolumePerLp, 4) + " /LP (norm.)"
-                          : "—"}
-                      </div>
-                    )}
+                    <div className="text-xs text-zinc-500">{fmt(Math.round(row.dailyVolume))}</div>
                   </td>
                   <td className="px-3 py-2 tabular-nums">
                     {showLiquidity ? (

@@ -21,6 +21,7 @@ export interface LpStoreRow {
   bestSell: number | null;
   dailyVolume: number;
   normalizedDailyVolume: number;
+  normalizedVolumePer1000Lp: number | null;
   lpToIskBuy: number | null;
   lpToIskSell: number | null;
   totalRequiredIskCost: number;
@@ -93,6 +94,8 @@ export async function fetchLpStoreRows(
           const levels = buy !== null ? buyOrderLevels(orders, buy) : [];
           const dailyVol = avgDailyVolume(history);
           const normalizedDailyVol = offer.quantity > 0 ? dailyVol / offer.quantity : 0;
+          const normalizedVolumePer1000Lp =
+            offer.lp_cost > 0 ? (normalizedDailyVol / offer.lp_cost) * 1000 : null;
 
           // Required ISK cost = base ISK cost + required items at their sell price
           let requiredIskCost = offer.isk_cost;
@@ -145,6 +148,7 @@ export async function fetchLpStoreRows(
             bestSell: sell,
             dailyVolume: dailyVol,
             normalizedDailyVolume: normalizedDailyVol,
+            normalizedVolumePer1000Lp,
             lpToIskBuy,
             lpToIskSell,
             totalRequiredIskCost: requiredIskCost,
