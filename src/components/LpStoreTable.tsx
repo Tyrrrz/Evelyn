@@ -176,7 +176,7 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
               </Th>
               <Th
                 col="dailyLpVolume"
-                title="Daily volume multiplied by LP cost — how much LP can be sold daily through this exchange. Followed by the raw average daily volume traded in Jita (last 30 days, 5% method) and, when more than 1 item is required per exchange, the normalized volume in parentheses — that volume divided by the exchange quantity, i.e. how many full exchanges could be sold per day (rounded down)"
+                title="Daily volume multiplied by LP cost — how much LP can be sold daily through this exchange. Followed by the raw average daily volume traded in Jita (last 30 days, 5% method) and, when more than 1 item is required per exchange, the normalized volume in parentheses — that volume divided by the exchange quantity, i.e. how many exchanges could be sold per day"
                 {...thProps}
               >
                 Daily Volume
@@ -238,7 +238,7 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
                     </div>
                     <div className="text-xs text-zinc-500">
                       {fmt(row.dailyVolume)}
-                      {row.quantity > 1 && ` (${fmt(Math.floor(row.normalizedDailyVolume))})`}
+                      {row.quantity > 1 && ` (${row.normalizedDailyVolume.toFixed(1)})`}
                     </div>
                   </td>
                   <td className="px-3 py-2 tabular-nums">
