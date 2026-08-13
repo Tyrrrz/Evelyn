@@ -5,7 +5,7 @@ type SortKey = keyof Pick<
   LpStoreRow,
   | "typeName"
   | "lpCost"
-  | "normalizedVolumePer1000Lp"
+  | "dailyLpVolume"
   | "lpToIskBuy"
   | "lpToIskSell"
   | "immediateLiquidityLp"
@@ -181,8 +181,8 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
                 Buy
               </Th>
               <Th
-                col="normalizedVolumePer1000Lp"
-                title="Volume normalized per 1000 LP — the daily volume (normalized by exchange quantity) per 1000 LP spent, indicating how liquid the offer is relative to how much LP it takes to unlock it. Followed by the raw average daily volume traded in Jita (last 30 days, 5% method) and, in parentheses, the normalized volume — that volume divided by the exchange quantity, i.e. how many full exchanges could be sold per day (rounded down)"
+                col="dailyLpVolume"
+                title="Daily volume multiplied by LP cost — how much LP can be sold daily through this exchange. Followed by the raw average daily volume traded in Jita (last 30 days, 5% method) and, in parentheses, the normalized volume — that volume divided by the exchange quantity, i.e. how many full exchanges could be sold per day (rounded down)"
                 {...thProps}
               >
                 Daily Volume
@@ -238,11 +238,9 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
                   <td className="px-3 py-2 text-zinc-300 tabular-nums">
                     <div
                       className="font-semibold"
-                      style={{ color: ratioColor(row.normalizedVolumePer1000Lp, 20) }}
+                      style={{ color: ratioColor(row.dailyLpVolume, 5_000_000) }}
                     >
-                      {row.normalizedVolumePer1000Lp !== null
-                        ? fmt(row.normalizedVolumePer1000Lp, 2) + " / 1K LP"
-                        : "—"}
+                      {row.dailyLpVolume !== null ? fmt(row.dailyLpVolume) + " LP" : "—"}
                     </div>
                     <div className="text-xs text-zinc-500">
                       {fmt(Math.round(row.dailyVolume))} (
