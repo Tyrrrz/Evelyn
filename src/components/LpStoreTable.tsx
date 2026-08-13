@@ -206,6 +206,9 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
                           {row.typeName}
                         </summary>
                         <ul className="mt-1 ml-4 text-xs font-normal text-zinc-400">
+                          {row.viaBlueprintName && (
+                            <li>Manufactured from: {row.viaBlueprintName}</li>
+                          )}
                           {[...row.requiredItems]
                             .sort((a, b) => a.typeName.localeCompare(b.typeName))
                             .map((ri) => (
