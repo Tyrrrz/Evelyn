@@ -20,22 +20,22 @@ function fmt(n: number | null | undefined, decimals = 0): string {
 
 function fmtIsk(n: number | null | undefined): string {
   if (n === null || n === undefined) return "—";
-  if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(2) + " B";
-  if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(2) + " M";
-  if (Math.abs(n) >= 1e3) return (n / 1e3).toFixed(2) + " K";
-  return n.toFixed(2);
+  if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(0) + " B";
+  if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(0) + " M";
+  if (Math.abs(n) >= 1e3) return (n / 1e3).toFixed(0) + " K";
+  return n.toFixed(0);
 }
 
 /** Formats an ISK/LP ratio without K/M/B abbreviation — LP values never get large enough to warrant it. */
 function fmtIskPerLp(n: number | null | undefined): string {
   if (n === null || n === undefined) return "—";
-  return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  return n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 }
 
 function sortRows(rows: LpStoreRow[], key: SortKey, dir: SortDir): LpStoreRow[] {
   return [...rows].sort((a, b) => {
-    const av = a[key] as number | string | null;
-    const bv = b[key] as number | string | null;
+    const av = sortValue(a, key);
+    const bv = sortValue(b, key);
     if (av === null && bv === null) return 0;
     if (av === null) return 1;
     if (bv === null) return -1;
@@ -44,6 +44,14 @@ function sortRows(rows: LpStoreRow[], key: SortKey, dir: SortDir): LpStoreRow[] 
     }
     return dir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
   });
+}
+
+/** Returns the value to sort by for a given row/key, treating empty (dash-displayed) liquidity as 0. */
+function sortValue(row: LpStoreRow, key: SortKey): number | string | null {
+  if (key === "immediateLiquidityLp") {
+    return row.lpCost > 0 && row.immediateLiquidityIsk > 0 ? row.immediateLiquidityLp : 0;
+  }
+  return row[key] as number | string | null;
 }
 
 /**
@@ -106,7 +114,6 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
   const [sortKey, setSortKey] = useState<SortKey>("lpToIskBuy");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [excludeRequiredItems, setExcludeRequiredItems] = useState(false);
-  const [nameFilter, setNameFilter] = useState("");
 
   const handleSort = (key: SortKey) => {
     if (key === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -118,7 +125,6 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
 
   const filtered = rows.filter((row) => {
     if (excludeRequiredItems && row.requiredItems.length > 0) return false;
-    if (nameFilter && !row.typeName.toLowerCase().includes(nameFilter.toLowerCase())) return false;
     return true;
   });
 
@@ -141,14 +147,6 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
           />
           Exclude exchanges requiring other items
         </label>
-        <input
-          type="text"
-          value={nameFilter}
-          onChange={(e) => setNameFilter(e.target.value)}
-          placeholder="Filter by item name…"
-          autoFocus
-          className="rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm text-zinc-100 placeholder-zinc-500 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-        />
       </div>
       <div className="overflow-x-auto rounded border border-zinc-800">
         <table className="min-w-full text-sm">
@@ -184,7 +182,7 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
               </Th>
               <Th
                 col="normalizedVolumePer1000Lp"
-                title="Volume normalized per 1000 LP — the daily volume (normalized by exchange quantity) per 1000 LP spent, indicating how liquid the offer is relative to how much LP it takes to unlock it. Followed by the normalized daily volume (that volume divided by the exchange quantity, i.e. how many full exchanges could be sold per day, rounded down) and the raw average daily volume traded in Jita (last 30 days, 5% method)"
+                title="Volume normalized per 1000 LP — the daily volume (normalized by exchange quantity) per 1000 LP spent, indicating how liquid the offer is relative to how much LP it takes to unlock it. Followed by the raw average daily volume traded in Jita (last 30 days, 5% method) and, in parentheses, the normalized volume — that volume divided by the exchange quantity, i.e. how many full exchanges could be sold per day (rounded down)"
                 {...thProps}
               >
                 Daily Volume
@@ -240,18 +238,16 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
                   <td className="px-3 py-2 text-zinc-300 tabular-nums">
                     <div
                       className="font-semibold"
-                      style={{ color: ratioColor(row.normalizedVolumePer1000Lp, 50) }}
+                      style={{ color: ratioColor(row.normalizedVolumePer1000Lp, 20) }}
                     >
                       {row.normalizedVolumePer1000Lp !== null
-                        ? fmt(row.normalizedVolumePer1000Lp, 2) + " /1000 LP"
+                        ? fmt(row.normalizedVolumePer1000Lp, 2) + " / 1K LP"
                         : "—"}
                     </div>
-                    {row.quantity > 1 && (
-                      <div className="text-xs text-zinc-500">
-                        {fmt(Math.floor(row.normalizedDailyVolume))}
-                      </div>
-                    )}
-                    <div className="text-xs text-zinc-500">{fmt(Math.round(row.dailyVolume))}</div>
+                    <div className="text-xs text-zinc-500">
+                      {fmt(Math.round(row.dailyVolume))} (
+                      {fmt(Math.floor(row.normalizedDailyVolume))})
+                    </div>
                   </td>
                   <td className="px-3 py-2 tabular-nums">
                     {showLiquidity ? (
