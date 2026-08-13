@@ -156,6 +156,7 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
           value={nameFilter}
           onChange={(e) => setNameFilter(e.target.value)}
           placeholder="Filter by item name…"
+          autoFocus
           className="rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm text-zinc-100 placeholder-zinc-500 focus:ring-2 focus:ring-amber-500 focus:outline-none"
         />
       </div>
@@ -193,14 +194,14 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
               </Th>
               <Th
                 col="normalizedDailyVolume"
-                title="Average daily volume traded in Jita (last 30 days, 5% method), followed by the normalized volume — that volume divided by the exchange quantity, i.e. how many full exchanges could be sold per day (rounded down)"
+                title="Average daily volume traded in Jita (last 30 days, 5% method), followed by the normalized volume — that volume divided by the exchange quantity, i.e. how many full exchanges could be sold per day (rounded down). Volume/LP (and Normalized Volume/LP, when the exchange quantity is more than 1) show that same volume divided by the LP cost, indicating how liquid the offer is relative to how much LP it takes to unlock it"
                 {...thProps}
               >
                 Daily Volume
               </Th>
               <Th
                 col="immediateLiquidityLp"
-                title="How much LP (and the resulting net ISK) can be liquidated right now by selling into the existing buy orders within 5% of the best buy price, filling only whole exchanges"
+                title="How much LP (and the resulting net ISK) can be liquidated right now by selling into the existing buy orders within 5% of the best buy price, filling only whole exchanges. Empty when the exchange doesn't cost LP or the net ISK would be zero or negative"
                 {...thProps}
               >
                 Immediate Liquidity
@@ -210,6 +211,10 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
           <tbody>
             {sorted.map((row, i) => {
               const otherIskCost = row.totalRequiredIskCost - row.iskCost;
+              const volumePerLp = row.lpCost > 0 ? row.dailyVolume / row.lpCost : null;
+              const normalizedVolumePerLp =
+                row.lpCost > 0 ? row.normalizedDailyVolume / row.lpCost : null;
+              const showLiquidity = row.lpCost > 0 && row.immediateLiquidityIsk > 0;
               return (
                 <tr key={row.offerId} className={i % 2 === 0 ? "bg-zinc-950" : "bg-zinc-900"}>
                   <td className="px-3 py-2 font-medium">
@@ -252,17 +257,39 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
                         {fmt(Math.floor(row.normalizedDailyVolume))}
                       </div>
                     )}
+                    <div
+                      className="text-xs font-semibold"
+                      style={{ color: ratioColor(volumePerLp, 10) }}
+                    >
+                      {volumePerLp !== null ? fmt(volumePerLp, 2) + " /LP" : "—"}
+                    </div>
+                    {row.quantity > 1 && (
+                      <div
+                        className="text-xs font-semibold"
+                        style={{ color: ratioColor(normalizedVolumePerLp, 0.05) }}
+                      >
+                        {normalizedVolumePerLp !== null
+                          ? fmt(normalizedVolumePerLp, 4) + " /LP (norm.)"
+                          : "—"}
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-2 tabular-nums">
-                    <div
-                      className="font-semibold"
-                      style={{ color: ratioColor(row.immediateLiquidityLp, 1_000_000) }}
-                    >
-                      {fmt(row.immediateLiquidityLp)} LP
-                    </div>
-                    <div className="text-xs text-zinc-500">
-                      {fmtIsk(row.immediateLiquidityIsk)} ISK
-                    </div>
+                    {showLiquidity ? (
+                      <>
+                        <div
+                          className="font-semibold"
+                          style={{ color: ratioColor(row.lpToIskBuy, 1000) }}
+                        >
+                          {fmt(row.immediateLiquidityLp)} LP
+                        </div>
+                        <div className="text-xs text-zinc-500">
+                          {fmtIsk(row.immediateLiquidityIsk)} ISK
+                        </div>
+                      </>
+                    ) : (
+                      "—"
+                    )}
                   </td>
                 </tr>
               );
