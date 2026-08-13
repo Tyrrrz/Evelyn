@@ -3,12 +3,7 @@ import type { LpStoreRow } from "../esi/lpStore.ts";
 
 type SortKey = keyof Pick<
   LpStoreRow,
-  | "typeName"
-  | "lpCost"
-  | "dailyLpVolume"
-  | "lpToIskBuy"
-  | "lpToIskSell"
-  | "immediateLiquidityLp"
+  "typeName" | "lpCost" | "dailyLpVolume" | "lpToIskBuy" | "lpToIskSell" | "immediateLiquidityLp"
 >;
 
 type SortDir = "asc" | "desc";
@@ -204,11 +199,13 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
                           {row.typeName}
                         </summary>
                         <ul className="mt-1 ml-4 text-xs font-normal text-zinc-400">
-                          {row.requiredItems.map((ri) => (
-                            <li key={ri.typeId}>
-                              {fmt(ri.quantity)} × {ri.typeName}
-                            </li>
-                          ))}
+                          {[...row.requiredItems]
+                            .sort((a, b) => a.typeName.localeCompare(b.typeName))
+                            .map((ri) => (
+                              <li key={ri.typeId}>
+                                {fmt(ri.quantity)} × {ri.typeName}
+                              </li>
+                            ))}
                         </ul>
                       </details>
                     ) : (
