@@ -13,23 +13,18 @@ type SortKey = keyof Pick<
 
 type SortDir = "asc" | "desc";
 
-function fmt(n: number | null | undefined, decimals = 0): string {
+/**
+ * Universal number formatter: values below 10,000 are shown rounded (no
+ * decimals, no abbreviation); values at or above 10,000 are abbreviated
+ * using K/M/B.
+ */
+function fmt(n: number | null | undefined): string {
   if (n === null || n === undefined) return "—";
-  return n.toLocaleString("en-US", { maximumFractionDigits: decimals });
-}
-
-function fmtIsk(n: number | null | undefined): string {
-  if (n === null || n === undefined) return "—";
-  if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(0) + " B";
-  if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(0) + " M";
-  if (Math.abs(n) >= 1e3) return (n / 1e3).toFixed(0) + " K";
-  return n.toFixed(0);
-}
-
-/** Formats an ISK/LP ratio without K/M/B abbreviation — LP values never get large enough to warrant it. */
-function fmtIskPerLp(n: number | null | undefined): string {
-  if (n === null || n === undefined) return "—";
-  return n.toLocaleString("en-US", { maximumFractionDigits: 0 });
+  const abs = Math.abs(n);
+  if (abs >= 1e9) return (n / 1e9).toFixed(0) + " B";
+  if (abs >= 1e6) return (n / 1e6).toFixed(0) + " M";
+  if (abs >= 1e4) return (n / 1e3).toFixed(0) + " K";
+  return Math.round(n).toLocaleString("en-US");
 }
 
 function sortRows(rows: LpStoreRow[], key: SortKey, dir: SortDir): LpStoreRow[] {
@@ -55,14 +50,13 @@ function sortValue(row: LpStoreRow, key: SortKey): number | string | null {
 }
 
 /**
- * Interpolates a red -> green color for a value on a [0, max] scale.
- * Values at or below 0 (or null) are dark red; values at/above max are green.
+ * Interpolates a red -> green color for a value on a [min, max] scale.
+ * Values at or below min are red; values at/above max are green.
  */
-function ratioColor(value: number | null, max: number): string {
+function ratioColor(value: number | null, min: number, max: number): string {
   if (value === null) return "#71717a"; // zinc-500, unknown
-  if (value <= 0) return "#7f1d1d"; // dark red (negative or zero)
 
-  const t = Math.max(0, Math.min(1, value / max));
+  const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
   const hue = t * 120; // 0 = red, 120 = green
   return `hsl(${hue}, 75%, 45%)`;
 }
@@ -102,10 +96,10 @@ function Th({
 function IskLpCell({ ratio, bestPrice }: { ratio: number | null; bestPrice: number | null }) {
   return (
     <td className="px-3 py-2 tabular-nums">
-      <div className="font-semibold" style={{ color: ratioColor(ratio, 1000) }}>
-        {ratio !== null ? fmtIskPerLp(ratio) + " ISK/LP" : "—"}
+      <div className="font-semibold" style={{ color: ratioColor(ratio, 200, 1200) }}>
+        {ratio !== null ? fmt(ratio) + " ISK/LP" : "—"}
       </div>
-      <div className="text-xs text-zinc-500">{fmtIsk(bestPrice)} ISK</div>
+      <div className="text-xs text-zinc-500">{fmt(bestPrice)} ISK</div>
     </td>
   );
 }
@@ -182,7 +176,7 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
               </Th>
               <Th
                 col="dailyLpVolume"
-                title="Daily volume multiplied by LP cost — how much LP can be sold daily through this exchange. Followed by the raw average daily volume traded in Jita (last 30 days, 5% method) and, in parentheses, the normalized volume — that volume divided by the exchange quantity, i.e. how many full exchanges could be sold per day (rounded down)"
+                title="Daily volume multiplied by LP cost — how much LP can be sold daily through this exchange. Followed by the raw average daily volume traded in Jita (last 30 days, 5% method) and, when more than 1 item is required per exchange, the normalized volume in parentheses — that volume divided by the exchange quantity, i.e. how many full exchanges could be sold per day (rounded down)"
                 {...thProps}
               >
                 Daily Volume
@@ -227,10 +221,10 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
                   <td className="px-3 py-2 text-xs text-zinc-300">
                     <div>{fmt(row.lpCost)} LP</div>
                     {row.iskCost > 0 && (
-                      <div className="text-zinc-500">+ {fmtIsk(row.iskCost)} ISK</div>
+                      <div className="text-zinc-500">+ {fmt(row.iskCost)} ISK</div>
                     )}
                     {otherIskCost > 0 && (
-                      <div className="text-zinc-500">+ {fmtIsk(otherIskCost)} ISK in items</div>
+                      <div className="text-zinc-500">+ {fmt(otherIskCost)} ISK in items</div>
                     )}
                   </td>
                   <IskLpCell ratio={row.lpToIskSell} bestPrice={row.bestSell} />
@@ -238,13 +232,13 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
                   <td className="px-3 py-2 text-zinc-300 tabular-nums">
                     <div
                       className="font-semibold"
-                      style={{ color: ratioColor(row.dailyLpVolume, 5_000_000) }}
+                      style={{ color: ratioColor(row.dailyLpVolume, 200_000, 4_000_000) }}
                     >
                       {row.dailyLpVolume !== null ? fmt(row.dailyLpVolume) + " LP" : "—"}
                     </div>
                     <div className="text-xs text-zinc-500">
-                      {fmt(Math.round(row.dailyVolume))} (
-                      {fmt(Math.floor(row.normalizedDailyVolume))})
+                      {fmt(row.dailyVolume)}
+                      {row.quantity > 1 && ` (${fmt(Math.floor(row.normalizedDailyVolume))})`}
                     </div>
                   </td>
                   <td className="px-3 py-2 tabular-nums">
@@ -252,12 +246,12 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
                       <>
                         <div
                           className="font-semibold"
-                          style={{ color: ratioColor(row.lpToIskBuy, 1000) }}
+                          style={{ color: ratioColor(row.lpToIskBuy, 200, 1200) }}
                         >
                           {fmt(row.immediateLiquidityLp)} LP
                         </div>
                         <div className="text-xs text-zinc-500">
-                          {fmtIsk(row.immediateLiquidityIsk)} ISK
+                          {fmt(row.immediateLiquidityIsk)} ISK
                         </div>
                       </>
                     ) : (
