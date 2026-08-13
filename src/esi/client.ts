@@ -37,39 +37,39 @@ export interface TypeInfo {
   type_id: number;
 }
 
-async function esiGet<T>(path: string): Promise<T> {
+// Long-lived in-memory cache for type info (names don't change often)
+const typeInfoCache = new Map<number, TypeInfo>();
+
+async function esiGet<T>(path: string, cacheable = false): Promise<T> {
   const url = `${ESI_BASE}${path}`;
+  const init: RequestInit = cacheable
+    ? { cache: "default" }
+    : { cache: "no-store" };
   const res = await fetch(url, {
-    next: { revalidate: 300 },
+    ...init,
     headers: { Accept: "application/json" },
   });
   if (!res.ok) {
-    throw new Error(`ESI request failed: ${url} -> ${res.status}`);
+    throw new Error(`ESI ${res.status}: ${url}`);
   }
   return res.json() as Promise<T>;
 }
 
-async function esiGetAllPages<T>(
-  path: string,
-  separator = "?"
-): Promise<T[]> {
-  const firstUrl = `${ESI_BASE}${path}`;
-  const res = await fetch(firstUrl, {
-    next: { revalidate: 300 },
+async function esiGetAllPages<T>(path: string, extraSep = "&"): Promise<T[]> {
+  const url = `${ESI_BASE}${path}`;
+  // Price data is never cached
+  const res = await fetch(url, {
+    cache: "no-store",
     headers: { Accept: "application/json" },
   });
-  if (!res.ok) {
-    throw new Error(`ESI request failed: ${firstUrl} -> ${res.status}`);
-  }
+  if (!res.ok) throw new Error(`ESI ${res.status}: ${url}`);
   const totalPages = parseInt(res.headers.get("X-Pages") ?? "1", 10);
   const firstPage = (await res.json()) as T[];
-
   if (totalPages <= 1) return firstPage;
-
   const rest = await Promise.all(
     Array.from({ length: totalPages - 1 }, (_, i) =>
-      esiGet<T[]>(`${path}${separator}page=${i + 2}`)
-    )
+      esiGet<T[]>(`${path}${extraSep}page=${i + 2}`),
+    ),
   );
   return firstPage.concat(...rest);
 }
@@ -77,69 +77,75 @@ async function esiGetAllPages<T>(
 export async function searchCorporations(query: string): Promise<Corporation[]> {
   if (!query.trim()) return [];
   const results = await esiGet<{ corporation?: number[] }>(
-    `/search/?categories=corporation&search=${encodeURIComponent(query)}&strict=false`
+    `/search/?categories=corporation&search=${encodeURIComponent(query)}&strict=false`,
+    true,
   );
   const ids = results.corporation ?? [];
   if (ids.length === 0) return [];
-  const limit = ids.slice(0, 20);
+  const limited = ids.slice(0, 20);
   const corps = await Promise.all(
-    limit.map((id) =>
-      esiGet<{ name: string; ticker: string }>(
-        `/corporations/${id}/`
-      ).then((c) => ({ corporation_id: id, name: c.name, ticker: c.ticker }))
-    )
+    limited.map((id) =>
+      esiGet<{ name: string; ticker: string }>(`/corporations/${id}/`, true).then((c) => ({
+        corporation_id: id,
+        name: c.name,
+        ticker: c.ticker,
+      })),
+    ),
   );
   return corps.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getLpOffers(corporationId: number): Promise<LpOffer[]> {
-  return esiGet<LpOffer[]>(`/loyalty/stores/${corporationId}/offers/`);
+  // LP store offers don't change often
+  return esiGet<LpOffer[]>(`/loyalty/stores/${corporationId}/offers/`, true);
 }
 
 export async function getMarketOrders(typeId: number): Promise<MarketOrder[]> {
+  // Market orders: always fresh
   return esiGetAllPages<MarketOrder>(
     `/markets/${JITA_REGION_ID}/orders/?type_id=${typeId}`,
-    "&"
+    "&",
   );
 }
 
-export async function getMarketHistory(
-  typeId: number
-): Promise<MarketHistoryEntry[]> {
+export async function getMarketHistory(typeId: number): Promise<MarketHistoryEntry[]> {
+  // History updates once a day — cacheable
   return esiGet<MarketHistoryEntry[]>(
-    `/markets/${JITA_REGION_ID}/history/?type_id=${typeId}`
+    `/markets/${JITA_REGION_ID}/history/?type_id=${typeId}`,
+    true,
   );
 }
 
 export async function getTypeInfo(typeId: number): Promise<TypeInfo> {
-  const t = await esiGet<{ name: string }>(`/universe/types/${typeId}/`);
-  return { type_id: typeId, name: t.name };
+  const cached = typeInfoCache.get(typeId);
+  if (cached) return cached;
+  const t = await esiGet<{ name: string }>(`/universe/types/${typeId}/`, true);
+  const info: TypeInfo = { type_id: typeId, name: t.name };
+  typeInfoCache.set(typeId, info);
+  return info;
 }
 
-export async function getTypeInfoBatch(
-  typeIds: number[]
-): Promise<Map<number, TypeInfo>> {
+export async function getTypeInfoBatch(typeIds: number[]): Promise<Map<number, TypeInfo>> {
   const unique = [...new Set(typeIds)];
   const results = await Promise.all(unique.map((id) => getTypeInfo(id)));
   return new Map(results.map((t) => [t.type_id, t]));
 }
 
-/** Compute best buy price (highest buy order) */
+/** Highest buy order price */
 export function bestBuyPrice(orders: MarketOrder[]): number | null {
-  const buys = orders.filter((o) => o.is_buy_order).map((o) => o.price);
-  return buys.length ? Math.max(...buys) : null;
+  const prices = orders.filter((o) => o.is_buy_order).map((o) => o.price);
+  return prices.length ? Math.max(...prices) : null;
 }
 
-/** Compute best sell price (lowest sell order) */
+/** Lowest sell order price */
 export function bestSellPrice(orders: MarketOrder[]): number | null {
-  const sells = orders.filter((o) => !o.is_buy_order).map((o) => o.price);
-  return sells.length ? Math.min(...sells) : null;
+  const prices = orders.filter((o) => !o.is_buy_order).map((o) => o.price);
+  return prices.length ? Math.min(...prices) : null;
 }
 
-/** Average daily volume over the last 30 days */
+/** Average daily volume over the last 30 days of market history */
 export function avgDailyVolume(history: MarketHistoryEntry[]): number {
   const recent = history.slice(-30);
-  if (recent.length === 0) return 0;
-  const total = recent.reduce((s, h) => s + h.volume, 0);
-  return total / recent.length;
+  if (!recent.length) return 0;
+  return recent.reduce((s, h) => s + h.volume, 0) / recent.length;
 }
