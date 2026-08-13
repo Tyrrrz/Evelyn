@@ -21,9 +21,9 @@ type SortDir = "asc" | "desc";
 function fmt(n: number | null | undefined): string {
   if (n === null || n === undefined) return "—";
   const abs = Math.abs(n);
-  if (abs >= 1e9) return (n / 1e9).toFixed(0) + " B";
-  if (abs >= 1e6) return (n / 1e6).toFixed(0) + " M";
-  if (abs >= 1e4) return (n / 1e3).toFixed(0) + " K";
+  if (abs >= 1e9) return (n / 1e9).toFixed(0) + "b";
+  if (abs >= 1e6) return (n / 1e6).toFixed(0) + "m";
+  if (abs >= 1e4) return (n / 1e3).toFixed(0) + "k";
   return Math.round(n).toLocaleString("en-US");
 }
 
