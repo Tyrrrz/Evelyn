@@ -16,7 +16,7 @@
 // Docs: https://developers.eveonline.com/docs/services/static-data/
 
 import { unzipSync } from "fflate";
-import yaml from "js-yaml";
+import { load as loadYaml } from "js-yaml";
 import { writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
@@ -35,7 +35,7 @@ async function main() {
   const entry = files["fsd/blueprints.yaml"];
   if (!entry) throw new Error("fsd/blueprints.yaml not found in SDE zip");
   const raw = new TextDecoder().decode(entry);
-  const blueprints = yaml.load(raw);
+  const blueprints = loadYaml(raw);
 
   const data = {};
   for (const [blueprintTypeIdStr, blueprint] of Object.entries(blueprints)) {

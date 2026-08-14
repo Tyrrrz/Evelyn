@@ -15,7 +15,7 @@
 // Docs: https://developers.eveonline.com/docs/services/static-data/
 
 import { unzipSync } from "fflate";
-import yaml from "js-yaml";
+import { load as loadYaml } from "js-yaml";
 import { writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
@@ -36,7 +36,7 @@ async function main() {
   const entry = files["fsd/npcCorporations.yaml"];
   if (!entry) throw new Error("fsd/npcCorporations.yaml not found in SDE zip");
   const raw = new TextDecoder().decode(entry);
-  const corporations = yaml.load(raw);
+  const corporations = loadYaml(raw);
 
   const data = [];
   for (const [corporationIdStr, corporation] of Object.entries(corporations)) {
