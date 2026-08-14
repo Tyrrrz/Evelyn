@@ -36,5 +36,5 @@ The app is automatically built and deployed to GitHub Pages on every push to the
 
 Some data that would otherwise require a live API call is instead bundled directly into the app, since it's static and rarely changes:
 
-- `src/esi/npcCorporations.ts` — a hardcoded list of NPC corporations.
+- `src/esi/npcCorporations.ts` / `src/esi/npcCorporationData.json` — NPC corporation list, generated from CCP's official [Static Data Export](https://developers.eveonline.com/docs/services/static-data/) by [`scripts/generate-npc-corporations.mjs`](scripts/generate-npc-corporations.mjs). Re-run this script manually (`node scripts/generate-npc-corporations.mjs`) to refresh it when new corporations are added.
 - `src/esi/blueprintData.json` — blueprint manufacturing recipes (product + materials), generated from CCP's official [Static Data Export](https://developers.eveonline.com/docs/services/static-data/) by [`scripts/generate-blueprint-data.mjs`](scripts/generate-blueprint-data.mjs). Re-run this script manually (`node scripts/generate-blueprint-data.mjs`) to refresh it after CCP introduces new blueprints.
