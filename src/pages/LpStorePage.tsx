@@ -28,16 +28,13 @@ export function LpStorePage() {
   };
 
   const handleQueryKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && suggestions.length > 0) {
-      selectCorp(suggestions[0]);
-    }
+    if (e.key === "Enter") handleSearch();
   };
 
-  const selectCorp = async (corp: Corporation) => {
+  const selectCorp = (corp: Corporation) => {
     setSelectedCorp(corp);
     setQuery(corp.name);
     setSuggestions([]);
-    await loadLpStoreData(corp, includeBlueprints);
   };
 
   const loadLpStoreData = async (corp: Corporation, withBlueprints: boolean) => {
@@ -60,14 +57,19 @@ export function LpStorePage() {
     }
   };
 
-  const handleRefresh = () => {
+  const handleSearch = () => {
+    if (suggestions.length > 0) {
+      const corp = suggestions[0];
+      setSelectedCorp(corp);
+      setQuery(corp.name);
+      setSuggestions([]);
+      void loadLpStoreData(corp, includeBlueprints);
+      return;
+    }
     if (selectedCorp) void loadLpStoreData(selectedCorp, includeBlueprints);
   };
 
-  const handleIncludeBlueprintsChange = (checked: boolean) => {
-    setIncludeBlueprints(checked);
-    if (selectedCorp) void loadLpStoreData(selectedCorp, checked);
-  };
+  const filteredRows = rows.filter((row) => includeOtherItems || row.requiredItems.length === 0);
 
   return (
     <div className="min-h-screen bg-zinc-950 font-sans text-zinc-100">
@@ -85,7 +87,7 @@ export function LpStorePage() {
 
       <main className="mx-auto max-w-screen-2xl px-6 py-6">
         {/* Corporation search */}
-        <div className="relative mb-8 max-w-md">
+        <div className="relative mb-4 max-w-md">
           <label className="mb-1 block text-sm font-medium text-zinc-400">NPC Corporation</label>
           <div className="flex items-center gap-2">
             <input
@@ -96,18 +98,16 @@ export function LpStorePage() {
               placeholder="Search corporation name…"
               className="w-full rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:ring-2 focus:ring-amber-500 focus:outline-none"
             />
-            {selectedCorp && (
-              <button
-                type="button"
-                onClick={handleRefresh}
-                disabled={loading}
-                title="Refresh LP store data"
-                aria-label="Refresh LP store data"
-                className="shrink-0 rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 hover:bg-zinc-700 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                ⟳
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleSearch}
+              disabled={loading || (!selectedCorp && suggestions.length === 0)}
+              title="Search"
+              aria-label="Search"
+              className="shrink-0 rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 hover:bg-zinc-700 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Search
+            </button>
           </div>
           {suggestions.length > 0 && (
             <ul className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded border border-zinc-700 bg-zinc-800 shadow-lg">
@@ -126,6 +126,34 @@ export function LpStorePage() {
           )}
         </div>
 
+        {/* Filters */}
+        <div className="mb-4 flex flex-wrap items-center gap-4 text-sm">
+          <label className="flex items-center gap-2 text-zinc-300">
+            <input
+              type="checkbox"
+              checked={includeOtherItems}
+              onChange={(e) => setIncludeOtherItems(e.target.checked)}
+              className="rounded border-zinc-600 bg-zinc-800"
+            />
+            Include exchanges requiring other items
+          </label>
+          <label className="flex items-center gap-2 text-zinc-300">
+            <input
+              type="checkbox"
+              checked={includeBlueprints}
+              onChange={(e) => setIncludeBlueprints(e.target.checked)}
+              className="rounded border-zinc-600 bg-zinc-800"
+            />
+            Include blueprints
+          </label>
+        </div>
+
+        {fetchedAt && (
+          <div className="mb-4 text-xs text-zinc-500">
+            {filteredRows.length} offers • fetched {fetchedAt.toLocaleString()}
+          </div>
+        )}
+
         {/* Loading / progress */}
         {loading && (
           <div className="mb-4 text-sm text-zinc-400">
@@ -140,21 +168,16 @@ export function LpStorePage() {
 
         {error && <div className="mb-4 text-sm text-red-400">Error: {error}</div>}
 
-        {rows.length > 0 && (
-          <LpStoreTable
-            rows={rows}
-            fetchedAt={fetchedAt}
-            includeOtherItems={includeOtherItems}
-            onIncludeOtherItemsChange={setIncludeOtherItems}
-            includeBlueprints={includeBlueprints}
-            onIncludeBlueprintsChange={handleIncludeBlueprintsChange}
-          />
+        {filteredRows.length > 0 && <LpStoreTable rows={filteredRows} />}
+
+        {!loading && fetchedAt && rows.length === 0 && !error && (
+          <div className="text-sm text-zinc-500">
+            No LP store offers found for {selectedCorp?.name}.
+          </div>
         )}
 
-        {!loading && selectedCorp && rows.length === 0 && !error && (
-          <div className="text-sm text-zinc-500">
-            No LP store offers found for {selectedCorp.name}.
-          </div>
+        {!loading && fetchedAt && rows.length > 0 && filteredRows.length === 0 && !error && (
+          <div className="text-sm text-zinc-500">No LP store offers match the current filters.</div>
         )}
       </main>
     </div>

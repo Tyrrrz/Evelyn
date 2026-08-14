@@ -15,27 +15,18 @@
 //
 // Docs: https://developers.eveonline.com/docs/services/static-data/
 
-import { unzipSync } from "fflate";
-import yaml from "js-yaml";
 import { writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { downloadSdeZip, extractYamlFile } from "./sde.mjs";
 
-const SDE_ZIP_URL =
-  "https://developers.eveonline.com/static-data/eve-online-static-data-latest-yaml.zip";
 const OUTPUT_PATH = fileURLToPath(new URL("../src/esi/blueprintData.json", import.meta.url));
 
 async function main() {
-  console.log(`Downloading SDE from ${SDE_ZIP_URL}...`);
-  const res = await fetch(SDE_ZIP_URL);
-  if (!res.ok) throw new Error(`Failed to download SDE: HTTP ${res.status}`);
-  const zipBuffer = new Uint8Array(await res.arrayBuffer());
+  const zipBuffer = await downloadSdeZip();
 
-  console.log("Extracting fsd/blueprints.yaml...");
-  const files = unzipSync(zipBuffer, { filter: (file) => file.name === "fsd/blueprints.yaml" });
-  const entry = files["fsd/blueprints.yaml"];
-  if (!entry) throw new Error("fsd/blueprints.yaml not found in SDE zip");
-  const raw = new TextDecoder().decode(entry);
-  const blueprints = yaml.load(raw);
+  // CCP dropped the `fsd/` directory prefix in a later SDE rework, so the current layout has
+  // this file at the zip root; the prefixed path is kept as a fallback for older zips.
+  const blueprints = extractYamlFile(zipBuffer, ["blueprints.yaml", "fsd/blueprints.yaml"]);
 
   const data = {};
   for (const [blueprintTypeIdStr, blueprint] of Object.entries(blueprints)) {
