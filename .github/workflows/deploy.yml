@@ -60,6 +60,9 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
+      - name: Generate static data
+        run: yarn generate-data
+
       - name: Build site
         env:
           BUILD_ID: ${{ github.sha }}

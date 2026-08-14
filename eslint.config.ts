@@ -27,4 +27,10 @@ export default tseslint.config(
       "react/prop-types": "off",
     },
   },
+  {
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+  },
 );

@@ -1,3 +1,4 @@
+import { getBlueprintInfo, isBlueprintTypeName } from "./client.ts";
 import {
   avgDailyVolume,
   bestBuyPrice,
@@ -15,7 +16,10 @@ export interface LpStoreRow {
   typeId: number;
   lpCost: number;
   iskCost: number;
+  /** Items the corporation requires directly, in addition to LP (and ISK, if any). */
   requiredItems: { typeId: number; typeName: string; quantity: number }[];
+  /** Materials needed to manufacture `typeName`, if this offer's reward is a blueprint copy. */
+  blueprintMaterials: { typeId: number; typeName: string; quantity: number }[];
   quantity: number;
   bestBuy: number | null;
   bestSell: number | null;
@@ -25,6 +29,10 @@ export interface LpStoreRow {
   lpToIskBuy: number | null;
   lpToIskSell: number | null;
   totalRequiredIskCost: number;
+  /** ISK cost (at sell price) of the offer's directly-required items, if any. */
+  requiredItemsIskCost: number;
+  /** ISK cost (at sell price) of the blueprint's materials, if any. */
+  blueprintMaterialsIskCost: number;
   immediateLiquidityLp: number;
   immediateLiquidityIsk: number;
 }
@@ -79,19 +87,48 @@ function computeImmediateLiquidity(
 
 export async function fetchLpStoreRows(
   corporationId: number,
+  includeBlueprints: boolean,
   onProgress?: (done: number, total: number) => void,
 ): Promise<LpStoreRow[]> {
-  const offers = await getLpOffers(corporationId);
+  const allOffers = await getLpOffers(corporationId);
   const getCachedMarketOrders = memoizeByTypeId(getMarketOrders);
   const getCachedMarketHistory = memoizeByTypeId(getMarketHistory);
 
-  // Resolve all type names in parallel
-  const allTypeIds = new Set<number>();
-  for (const offer of offers) {
-    allTypeIds.add(offer.type_id);
-    for (const ri of offer.required_items) allTypeIds.add(ri.type_id);
+  // Resolve all directly-referenced type names first, so blueprint offers can be identified
+  const baseTypeIds = new Set<number>();
+  for (const offer of allOffers) {
+    baseTypeIds.add(offer.type_id);
+    for (const ri of offer.required_items) baseTypeIds.add(ri.type_id);
   }
-  const typeInfoMap = await getTypeInfoBatch([...allTypeIds]);
+  const baseTypeInfoMap = await getTypeInfoBatch([...baseTypeIds]);
+
+  // When blueprints are excluded, drop their offers upfront so no time is wasted resolving
+  // their recipes or fetching market data for their (often numerous) materials.
+  const offers = includeBlueprints
+    ? allOffers
+    : allOffers.filter((o) => !isBlueprintTypeName(baseTypeInfoMap.get(o.type_id)?.name ?? ""));
+
+  // Some LP offers reward a blueprint copy instead of an item outright. Those need to be
+  // manufactured to yield something valuable, so look up their recipe (product + materials).
+  const blueprintInfoByOfferTypeId = new Map<number, ReturnType<typeof getBlueprintInfo>>();
+  if (includeBlueprints) {
+    for (const offer of offers) {
+      if (!isBlueprintTypeName(baseTypeInfoMap.get(offer.type_id)?.name ?? "")) continue;
+      blueprintInfoByOfferTypeId.set(offer.type_id, getBlueprintInfo(offer.type_id));
+    }
+  }
+
+  // Resolve names for any newly-discovered product/material types from blueprint recipes
+  const extraTypeIds = new Set<number>();
+  for (const info of blueprintInfoByOfferTypeId.values()) {
+    if (!info) continue;
+    extraTypeIds.add(info.productTypeId);
+    for (const m of info.materials) extraTypeIds.add(m.typeId);
+  }
+  const extraTypeInfoMap = extraTypeIds.size
+    ? await getTypeInfoBatch([...extraTypeIds])
+    : new Map<number, { name: string; type_id: number }>();
+  const typeInfoMap = new Map([...baseTypeInfoMap, ...extraTypeInfoMap]);
 
   const rows: LpStoreRow[] = [];
   let done = 0;
@@ -101,22 +138,40 @@ export async function fetchLpStoreRows(
     const batchRows = await Promise.all(
       batch.map(async (offer) => {
         try {
+          // If this offer's reward is a blueprint, value the item it manufactures instead of
+          // the blueprint copy itself, scaled by how many units a single run produces.
+          const blueprintInfo = blueprintInfoByOfferTypeId.get(offer.type_id) ?? null;
+          const effectiveTypeId = blueprintInfo ? blueprintInfo.productTypeId : offer.type_id;
+          const effectiveQuantity = blueprintInfo
+            ? offer.quantity * blueprintInfo.productQuantity
+            : offer.quantity;
+          const blueprintMaterials = blueprintInfo
+            ? blueprintInfo.materials.map((m) => ({
+                type_id: m.typeId,
+                quantity: m.quantity * offer.quantity,
+              }))
+            : [];
+          // Blueprint materials are folded in alongside the offer's required items for the
+          // purposes of computing total ISK cost, since both are just additional costs incurred
+          // to complete the exchange — but they're kept as separate lists for display.
+          const allRequiredItems = [...offer.required_items, ...blueprintMaterials];
+
           const [orders, history] = await Promise.all([
-            getCachedMarketOrders(offer.type_id),
-            getCachedMarketHistory(offer.type_id),
+            getCachedMarketOrders(effectiveTypeId),
+            getCachedMarketHistory(effectiveTypeId),
           ]);
 
           const buy = bestBuyPrice(orders);
           const sell = bestSellPrice(orders);
           const levels = buy !== null ? buyOrderLevels(orders, buy) : [];
           const dailyVol = avgDailyVolume(history);
-          const normalizedDailyVol = offer.quantity > 0 ? dailyVol / offer.quantity : 0;
+          const normalizedDailyVol = effectiveQuantity > 0 ? dailyVol / effectiveQuantity : 0;
           const dailyLpVolume = offer.lp_cost > 0 ? normalizedDailyVol * offer.lp_cost : null;
 
-          // Required ISK cost = base ISK cost + required items at their sell price
-          let requiredIskCost = offer.isk_cost;
+          // Required ISK cost = base ISK cost + required items (and blueprint materials, if any)
+          // at their sell price
           const reqItemMarkets = await Promise.all(
-            offer.required_items.map(async (ri) => {
+            allRequiredItems.map(async (ri) => {
               const riOrders = await getCachedMarketOrders(ri.type_id);
               return {
                 type_id: ri.type_id,
@@ -125,12 +180,18 @@ export async function fetchLpStoreRows(
               };
             }),
           );
-          for (const ri of reqItemMarkets) {
-            if (ri.sellPrice !== null) requiredIskCost += ri.sellPrice * ri.quantity;
-          }
+          const sellPriceByTypeId = new Map(reqItemMarkets.map((ri) => [ri.type_id, ri.sellPrice]));
+          const iskCostOf = (items: { type_id: number; quantity: number }[]) =>
+            items.reduce((sum, item) => {
+              const sellPrice = sellPriceByTypeId.get(item.type_id);
+              return sellPrice != null ? sum + sellPrice * item.quantity : sum;
+            }, 0);
+          const requiredItemsIskCost = iskCostOf(offer.required_items);
+          const blueprintMaterialsIskCost = iskCostOf(blueprintMaterials);
+          const requiredIskCost = offer.isk_cost + requiredItemsIskCost + blueprintMaterialsIskCost;
 
-          const buyRevenue = buy !== null ? buy * offer.quantity : null;
-          const sellRevenue = sell !== null ? sell * offer.quantity : null;
+          const buyRevenue = buy !== null ? buy * effectiveQuantity : null;
+          const sellRevenue = sell !== null ? sell * effectiveQuantity : null;
 
           const lpToIskBuy =
             buyRevenue !== null && offer.lp_cost > 0
@@ -144,14 +205,14 @@ export async function fetchLpStoreRows(
           const immediateLiquidity = computeImmediateLiquidity(
             levels,
             offer.lp_cost,
-            offer.quantity,
+            effectiveQuantity,
             requiredIskCost,
           );
 
           return {
             offerId: offer.offer_id,
-            typeName: typeInfoMap.get(offer.type_id)?.name ?? `Type ${offer.type_id}`,
-            typeId: offer.type_id,
+            typeName: typeInfoMap.get(effectiveTypeId)?.name ?? `Type ${effectiveTypeId}`,
+            typeId: effectiveTypeId,
             lpCost: offer.lp_cost,
             iskCost: offer.isk_cost,
             requiredItems: offer.required_items.map((ri) => ({
@@ -159,7 +220,12 @@ export async function fetchLpStoreRows(
               typeName: typeInfoMap.get(ri.type_id)?.name ?? `Type ${ri.type_id}`,
               quantity: ri.quantity,
             })),
-            quantity: offer.quantity,
+            blueprintMaterials: blueprintMaterials.map((ri) => ({
+              typeId: ri.type_id,
+              typeName: typeInfoMap.get(ri.type_id)?.name ?? `Type ${ri.type_id}`,
+              quantity: ri.quantity,
+            })),
+            quantity: effectiveQuantity,
             bestBuy: buy,
             bestSell: sell,
             dailyVolume: dailyVol,
@@ -168,6 +234,8 @@ export async function fetchLpStoreRows(
             lpToIskBuy,
             lpToIskSell,
             totalRequiredIskCost: requiredIskCost,
+            requiredItemsIskCost,
+            blueprintMaterialsIskCost,
             immediateLiquidityLp: immediateLiquidity.lp,
             immediateLiquidityIsk: immediateLiquidity.isk,
           } satisfies LpStoreRow;
