@@ -18,6 +18,8 @@ export function LpStorePage() {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [includeOtherItems, setIncludeOtherItems] = useState(true);
+  const [includeBlueprints, setIncludeBlueprints] = useState(false);
 
   const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -35,17 +37,17 @@ export function LpStorePage() {
     setSelectedCorp(corp);
     setQuery(corp.name);
     setSuggestions([]);
-    await loadLpStoreData(corp);
+    await loadLpStoreData(corp, includeBlueprints);
   };
 
-  const loadLpStoreData = async (corp: Corporation) => {
+  const loadLpStoreData = async (corp: Corporation, withBlueprints: boolean) => {
     setLoading(true);
     setProgress(null);
     setError(null);
     setRows([]);
     setFetchedAt(null);
     try {
-      const data = await fetchLpStoreRows(corp.corporation_id, (done, total) =>
+      const data = await fetchLpStoreRows(corp.corporation_id, withBlueprints, (done, total) =>
         setProgress({ done, total }),
       );
       setRows(data);
@@ -59,7 +61,12 @@ export function LpStorePage() {
   };
 
   const handleRefresh = () => {
-    if (selectedCorp) void loadLpStoreData(selectedCorp);
+    if (selectedCorp) void loadLpStoreData(selectedCorp, includeBlueprints);
+  };
+
+  const handleIncludeBlueprintsChange = (checked: boolean) => {
+    setIncludeBlueprints(checked);
+    if (selectedCorp) void loadLpStoreData(selectedCorp, checked);
   };
 
   return (
@@ -133,7 +140,16 @@ export function LpStorePage() {
 
         {error && <div className="mb-4 text-sm text-red-400">Error: {error}</div>}
 
-        {rows.length > 0 && <LpStoreTable rows={rows} fetchedAt={fetchedAt} />}
+        {rows.length > 0 && (
+          <LpStoreTable
+            rows={rows}
+            fetchedAt={fetchedAt}
+            includeOtherItems={includeOtherItems}
+            onIncludeOtherItemsChange={setIncludeOtherItems}
+            includeBlueprints={includeBlueprints}
+            onIncludeBlueprintsChange={handleIncludeBlueprintsChange}
+          />
+        )}
 
         {!loading && selectedCorp && rows.length === 0 && !error && (
           <div className="text-sm text-zinc-500">

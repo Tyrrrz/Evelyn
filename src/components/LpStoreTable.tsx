@@ -16,10 +16,20 @@ type SortDir = "asc" | "desc";
 function fmt(n: number | null | undefined): string {
   if (n === null || n === undefined) return "—";
   const abs = Math.abs(n);
-  if (abs >= 1e9) return (n / 1e9).toFixed(1) + "b";
-  if (abs >= 1e6) return (n / 1e6).toFixed(1) + "m";
-  if (abs >= 1e4) return (n / 1e3).toFixed(1) + "k";
+  if (abs >= 1e9) return trimTrailingZeroDecimal((n / 1e9).toFixed(1)) + "b";
+  if (abs >= 1e6) return trimTrailingZeroDecimal((n / 1e6).toFixed(1)) + "m";
+  if (abs >= 1e4) return trimTrailingZeroDecimal((n / 1e3).toFixed(1)) + "k";
   return Math.round(n).toLocaleString("en-US");
+}
+
+/** Formats a number with 1 decimal of precision, dropping it entirely if it's all zeroes. */
+function fmtDecimal(n: number): string {
+  return trimTrailingZeroDecimal(n.toFixed(1));
+}
+
+/** Drops a trailing ".0" from a fixed-precision number string. */
+function trimTrailingZeroDecimal(s: string): string {
+  return s.endsWith(".0") ? s.slice(0, -2) : s;
 }
 
 function sortRows(rows: LpStoreRow[], key: SortKey, dir: SortDir): LpStoreRow[] {
@@ -106,10 +116,23 @@ function IskLpCell({ ratio, bestPrice }: { ratio: number | null; bestPrice: numb
   );
 }
 
-export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedAt: Date | null }) {
+export function LpStoreTable({
+  rows,
+  fetchedAt,
+  includeOtherItems,
+  onIncludeOtherItemsChange,
+  includeBlueprints,
+  onIncludeBlueprintsChange,
+}: {
+  rows: LpStoreRow[];
+  fetchedAt: Date | null;
+  includeOtherItems: boolean;
+  onIncludeOtherItemsChange: (checked: boolean) => void;
+  includeBlueprints: boolean;
+  onIncludeBlueprintsChange: (checked: boolean) => void;
+}) {
   const [sortKey, setSortKey] = useState<SortKey>("lpToIskBuy");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [excludeRequiredItems, setExcludeRequiredItems] = useState(false);
 
   const handleSort = (key: SortKey) => {
     if (key === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -120,7 +143,7 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
   };
 
   const filtered = rows.filter((row) => {
-    if (excludeRequiredItems && row.requiredItems.length > 0) return false;
+    if (!includeOtherItems && row.requiredItems.length > 0) return false;
     return true;
   });
 
@@ -137,11 +160,20 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
         <label className="flex items-center gap-2 text-zinc-300">
           <input
             type="checkbox"
-            checked={excludeRequiredItems}
-            onChange={(e) => setExcludeRequiredItems(e.target.checked)}
+            checked={includeOtherItems}
+            onChange={(e) => onIncludeOtherItemsChange(e.target.checked)}
             className="rounded border-zinc-600 bg-zinc-800"
           />
-          Exclude exchanges requiring other items
+          Include exchanges requiring other items
+        </label>
+        <label className="flex items-center gap-2 text-zinc-300">
+          <input
+            type="checkbox"
+            checked={includeBlueprints}
+            onChange={(e) => onIncludeBlueprintsChange(e.target.checked)}
+            className="rounded border-zinc-600 bg-zinc-800"
+          />
+          Include blueprints
         </label>
       </div>
       <div className="overflow-x-auto rounded border border-zinc-800">
@@ -196,33 +228,44 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
             {sorted.map((row, i) => {
               const otherIskCost = row.totalRequiredIskCost - row.iskCost;
               const showLiquidity = row.lpCost > 0 && row.immediateLiquidityIsk > 0;
+              const hasItemLists =
+                row.requiredItems.length > 0 || row.blueprintMaterials.length > 0;
+              const itemLabel = `${row.quantity > 1 ? `${fmt(row.quantity)} × ` : ""}${row.typeName}${row.producedFromBlueprint ? " (Blueprint)" : ""}`;
               return (
                 <tr key={row.offerId} className={i % 2 === 0 ? "bg-zinc-950" : "bg-zinc-900"}>
                   <td className="px-3 py-2 font-medium">
-                    {row.requiredItems.length > 0 ? (
+                    {hasItemLists ? (
                       <details>
                         <summary className="cursor-pointer list-inside marker:text-zinc-500">
-                          {row.quantity > 1 ? `${fmt(row.quantity)} × ` : ""}
-                          {row.typeName}
+                          {itemLabel}
                         </summary>
-                        <ul className="mt-1 ml-4 text-xs font-normal text-zinc-400">
-                          {row.viaBlueprintName && (
-                            <li>Manufactured from: {row.viaBlueprintName}</li>
-                          )}
-                          {[...row.requiredItems]
-                            .sort((a, b) => a.typeName.localeCompare(b.typeName))
-                            .map((ri) => (
-                              <li key={ri.typeId}>
-                                {fmt(ri.quantity)} × {ri.typeName}
-                              </li>
-                            ))}
-                        </ul>
+                        {row.requiredItems.length > 0 && (
+                          <ul className="mt-1 ml-4 text-xs font-normal text-zinc-400">
+                            <li className="text-zinc-500 uppercase">Required items</li>
+                            {[...row.requiredItems]
+                              .sort((a, b) => a.typeName.localeCompare(b.typeName))
+                              .map((ri) => (
+                                <li key={ri.typeId}>
+                                  {fmt(ri.quantity)} × {ri.typeName}
+                                </li>
+                              ))}
+                          </ul>
+                        )}
+                        {row.blueprintMaterials.length > 0 && (
+                          <ul className="mt-1 ml-4 text-xs font-normal text-zinc-400">
+                            <li className="text-zinc-500 uppercase">Blueprint materials</li>
+                            {[...row.blueprintMaterials]
+                              .sort((a, b) => a.typeName.localeCompare(b.typeName))
+                              .map((ri) => (
+                                <li key={ri.typeId}>
+                                  {fmt(ri.quantity)} × {ri.typeName}
+                                </li>
+                              ))}
+                          </ul>
+                        )}
                       </details>
                     ) : (
-                      <>
-                        {row.quantity > 1 ? `${fmt(row.quantity)} × ` : ""}
-                        {row.typeName}
-                      </>
+                      itemLabel
                     )}
                   </td>
                   <td className="px-3 py-2 text-xs text-zinc-300">
@@ -245,7 +288,7 @@ export function LpStoreTable({ rows, fetchedAt }: { rows: LpStoreRow[]; fetchedA
                     </div>
                     <div className="text-xs text-zinc-500">
                       {fmt(row.dailyVolume)}
-                      {row.quantity > 1 && ` (${row.normalizedDailyVolume.toFixed(1)})`}
+                      {row.quantity > 1 && ` (${fmtDecimal(row.normalizedDailyVolume)})`}
                     </div>
                   </td>
                   <td className="px-3 py-2 tabular-nums">
