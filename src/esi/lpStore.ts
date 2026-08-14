@@ -31,6 +31,10 @@ export interface LpStoreRow {
   lpToIskBuy: number | null;
   lpToIskSell: number | null;
   totalRequiredIskCost: number;
+  /** ISK cost (at sell price) of the offer's directly-required items, if any. */
+  requiredItemsIskCost: number;
+  /** ISK cost (at sell price) of the blueprint's materials, if any. */
+  blueprintMaterialsIskCost: number;
   immediateLiquidityLp: number;
   immediateLiquidityIsk: number;
 }
@@ -168,7 +172,6 @@ export async function fetchLpStoreRows(
 
           // Required ISK cost = base ISK cost + required items (and blueprint materials, if any)
           // at their sell price
-          let requiredIskCost = offer.isk_cost;
           const reqItemMarkets = await Promise.all(
             allRequiredItems.map(async (ri) => {
               const riOrders = await getCachedMarketOrders(ri.type_id);
@@ -179,9 +182,14 @@ export async function fetchLpStoreRows(
               };
             }),
           );
-          for (const ri of reqItemMarkets) {
-            if (ri.sellPrice !== null) requiredIskCost += ri.sellPrice * ri.quantity;
-          }
+          const iskCostOf = (items: { type_id: number; quantity: number }[]) =>
+            items.reduce((sum, item) => {
+              const market = reqItemMarkets.find((ri) => ri.type_id === item.type_id);
+              return market?.sellPrice != null ? sum + market.sellPrice * item.quantity : sum;
+            }, 0);
+          const requiredItemsIskCost = iskCostOf(offer.required_items);
+          const blueprintMaterialsIskCost = iskCostOf(blueprintMaterials);
+          const requiredIskCost = offer.isk_cost + requiredItemsIskCost + blueprintMaterialsIskCost;
 
           const buyRevenue = buy !== null ? buy * effectiveQuantity : null;
           const sellRevenue = sell !== null ? sell * effectiveQuantity : null;
@@ -228,6 +236,8 @@ export async function fetchLpStoreRows(
             lpToIskBuy,
             lpToIskSell,
             totalRequiredIskCost: requiredIskCost,
+            requiredItemsIskCost,
+            blueprintMaterialsIskCost,
             immediateLiquidityLp: immediateLiquidity.lp,
             immediateLiquidityIsk: immediateLiquidity.isk,
           } satisfies LpStoreRow;

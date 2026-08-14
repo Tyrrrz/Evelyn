@@ -189,7 +189,7 @@ export function LpStoreTable({
               </Th>
               <Th
                 col="lpCost"
-                title="Total cost per exchange: LP required, plus any ISK cost paid directly to the corporation, plus the market value of any required items"
+                title="Total cost per exchange: LP required, plus any ISK cost paid directly to the corporation, plus the market value of any required items and blueprint materials"
                 {...thProps}
               >
                 Cost
@@ -226,7 +226,6 @@ export function LpStoreTable({
           </thead>
           <tbody>
             {sorted.map((row, i) => {
-              const otherIskCost = row.totalRequiredIskCost - row.iskCost;
               const showLiquidity = row.lpCost > 0 && row.immediateLiquidityIsk > 0;
               const hasItemLists =
                 row.requiredItems.length > 0 || row.blueprintMaterials.length > 0;
@@ -252,7 +251,7 @@ export function LpStoreTable({
                           </ul>
                         )}
                         {row.blueprintMaterials.length > 0 && (
-                          <ul className="mt-1 ml-4 text-xs font-normal text-zinc-400">
+                          <ul className="mt-2 ml-4 text-xs font-normal text-zinc-400">
                             <li className="text-zinc-500 uppercase">Blueprint materials</li>
                             {[...row.blueprintMaterials]
                               .sort((a, b) => a.typeName.localeCompare(b.typeName))
@@ -273,8 +272,15 @@ export function LpStoreTable({
                     {row.iskCost > 0 && (
                       <div className="text-zinc-500">+ {fmt(row.iskCost)} ISK</div>
                     )}
-                    {otherIskCost > 0 && (
-                      <div className="text-zinc-500">+ {fmt(otherIskCost)} ISK in items</div>
+                    {row.requiredItemsIskCost > 0 && (
+                      <div className="text-zinc-500">
+                        + {fmt(row.requiredItemsIskCost)} ISK in items
+                      </div>
+                    )}
+                    {row.blueprintMaterialsIskCost > 0 && (
+                      <div className="text-zinc-500">
+                        + {fmt(row.blueprintMaterialsIskCost)} ISK in materials
+                      </div>
                     )}
                   </td>
                   <IskLpCell ratio={row.lpToIskSell} bestPrice={row.bestSell} />
