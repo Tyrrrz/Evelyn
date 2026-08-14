@@ -182,10 +182,11 @@ export async function fetchLpStoreRows(
               };
             }),
           );
+          const sellPriceByTypeId = new Map(reqItemMarkets.map((ri) => [ri.type_id, ri.sellPrice]));
           const iskCostOf = (items: { type_id: number; quantity: number }[]) =>
             items.reduce((sum, item) => {
-              const market = reqItemMarkets.find((ri) => ri.type_id === item.type_id);
-              return market?.sellPrice != null ? sum + market.sellPrice * item.quantity : sum;
+              const sellPrice = sellPriceByTypeId.get(item.type_id);
+              return sellPrice != null ? sum + sellPrice * item.quantity : sum;
             }, 0);
           const requiredItemsIskCost = iskCostOf(offer.required_items);
           const blueprintMaterialsIskCost = iskCostOf(blueprintMaterials);
