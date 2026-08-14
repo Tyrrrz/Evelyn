@@ -14,29 +14,21 @@
 //
 // Docs: https://developers.eveonline.com/docs/services/static-data/
 
-import { unzipSync } from "fflate";
-import { load as loadYaml } from "js-yaml";
 import { writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { downloadSdeZip, extractYamlFile } from "./sde.mjs";
 
-const SDE_ZIP_URL =
-  "https://developers.eveonline.com/static-data/eve-online-static-data-latest-yaml.zip";
 const OUTPUT_PATH = fileURLToPath(new URL("../src/esi/npcCorporationData.json", import.meta.url));
 
 async function main() {
-  console.log(`Downloading SDE from ${SDE_ZIP_URL}...`);
-  const res = await fetch(SDE_ZIP_URL);
-  if (!res.ok) throw new Error(`Failed to download SDE: HTTP ${res.status}`);
-  const zipBuffer = new Uint8Array(await res.arrayBuffer());
+  const zipBuffer = await downloadSdeZip();
 
-  console.log("Extracting fsd/npcCorporations.yaml...");
-  const files = unzipSync(zipBuffer, {
-    filter: (file) => file.name === "fsd/npcCorporations.yaml",
-  });
-  const entry = files["fsd/npcCorporations.yaml"];
-  if (!entry) throw new Error("fsd/npcCorporations.yaml not found in SDE zip");
-  const raw = new TextDecoder().decode(entry);
-  const corporations = loadYaml(raw);
+  // CCP dropped the `fsd/` directory prefix in a later SDE rework, so the current layout has
+  // this file at the zip root; the prefixed path is kept as a fallback for older zips.
+  const corporations = extractYamlFile(zipBuffer, [
+    "npcCorporations.yaml",
+    "fsd/npcCorporations.yaml",
+  ]);
 
   const data = [];
   for (const [corporationIdStr, corporation] of Object.entries(corporations)) {
