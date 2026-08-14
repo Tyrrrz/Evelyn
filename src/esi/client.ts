@@ -13,9 +13,6 @@ import blueprintData from "./blueprintData.json";
 
 const ESI_BASE = "https://esi.evetech.net/latest";
 
-// The Forge (Jita) region ID
-const JITA_REGION_ID = 10000002;
-
 export interface Corporation {
   corporation_id: number;
   name: string;
@@ -104,14 +101,12 @@ async function esiGetAllPages<T>(path: string, extraSep = "&"): Promise<T[]> {
 }
 
 /**
- * Search NPC corporations by name against the bundled dataset (see scripts/generate-npc-corporations.mjs).
- * The ESI search endpoint does not reliably return NPC corporations, so we search locally instead.
+ * All NPC corporations from the bundled dataset (see scripts/generate-npc-corporations.mjs),
+ * sorted alphabetically. The ESI search endpoint does not reliably return NPC corporations, so
+ * this data is bundled locally instead.
  */
-export function searchCorporations(query: string): Corporation[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return [];
+export function getCorporations(): Corporation[] {
   return (npcCorporationData as { corporationId: number; name: string }[])
-    .filter((c) => c.name.toLowerCase().includes(q))
     .map((c) => ({ corporation_id: c.corporationId, name: c.name }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -121,17 +116,17 @@ export async function getLpOffers(corporationId: number): Promise<LpOffer[]> {
   return esiGet<LpOffer[]>(`/loyalty/stores/${corporationId}/offers/`, true);
 }
 
-export async function getMarketOrders(typeId: number): Promise<MarketOrder[]> {
+export async function getMarketOrders(typeId: number, regionId: number): Promise<MarketOrder[]> {
   // Market orders: always fresh
-  return esiGetAllPages<MarketOrder>(`/markets/${JITA_REGION_ID}/orders/?type_id=${typeId}`, "&");
+  return esiGetAllPages<MarketOrder>(`/markets/${regionId}/orders/?type_id=${typeId}`, "&");
 }
 
-export async function getMarketHistory(typeId: number): Promise<MarketHistoryEntry[]> {
+export async function getMarketHistory(
+  typeId: number,
+  regionId: number,
+): Promise<MarketHistoryEntry[]> {
   // History updates once a day — cacheable
-  return esiGet<MarketHistoryEntry[]>(
-    `/markets/${JITA_REGION_ID}/history/?type_id=${typeId}`,
-    true,
-  );
+  return esiGet<MarketHistoryEntry[]>(`/markets/${regionId}/history/?type_id=${typeId}`, true);
 }
 
 export async function getTypeInfo(typeId: number): Promise<TypeInfo> {
