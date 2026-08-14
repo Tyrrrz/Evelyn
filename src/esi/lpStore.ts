@@ -87,7 +87,6 @@ export async function fetchLpStoreRows(
   const offers = await getLpOffers(corporationId);
   const getCachedMarketOrders = memoizeByTypeId(getMarketOrders);
   const getCachedMarketHistory = memoizeByTypeId(getMarketHistory);
-  const getCachedBlueprintInfo = memoizeByTypeId(getBlueprintInfo);
 
   // Resolve all directly-referenced type names first, so blueprint offers can be identified
   const baseTypeIds = new Set<number>();
@@ -98,19 +97,13 @@ export async function fetchLpStoreRows(
   const baseTypeInfoMap = await getTypeInfoBatch([...baseTypeIds]);
 
   // Some LP offers reward a blueprint copy instead of an item outright. Those need to be
-  // manufactured to yield something valuable, so fetch their recipe (product + materials) —
+  // manufactured to yield something valuable, so look up their recipe (product + materials) —
   // the blueprint's materials are treated the same as an offer's other required items.
-  const blueprintInfoByOfferTypeId = new Map<
-    number,
-    Awaited<ReturnType<typeof getBlueprintInfo>>
-  >();
-  await Promise.all(
-    offers
-      .filter((offer) => isBlueprintTypeName(baseTypeInfoMap.get(offer.type_id)?.name ?? ""))
-      .map(async (offer) => {
-        blueprintInfoByOfferTypeId.set(offer.type_id, await getCachedBlueprintInfo(offer.type_id));
-      }),
-  );
+  const blueprintInfoByOfferTypeId = new Map<number, ReturnType<typeof getBlueprintInfo>>();
+  for (const offer of offers) {
+    if (!isBlueprintTypeName(baseTypeInfoMap.get(offer.type_id)?.name ?? "")) continue;
+    blueprintInfoByOfferTypeId.set(offer.type_id, getBlueprintInfo(offer.type_id));
+  }
 
   // Resolve names for any newly-discovered product/material types from blueprint recipes
   const extraTypeIds = new Set<number>();
