@@ -10,57 +10,48 @@
 //
 //   node scripts/generate-npc-corporations.mjs
 //
-// It requires network access to developers.eveonline.com and a system `unzip` binary.
+// It requires network access to developers.eveonline.com.
 //
 // Docs: https://developers.eveonline.com/docs/services/static-data/
 
+import { unzipSync } from "fflate";
 import yaml from "js-yaml";
-import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
-
-const execFileAsync = promisify(execFile);
 
 const SDE_ZIP_URL =
   "https://developers.eveonline.com/static-data/eve-online-static-data-latest-yaml.zip";
 const OUTPUT_PATH = fileURLToPath(new URL("../src/esi/npcCorporationData.json", import.meta.url));
 
 async function main() {
-  const dir = await mkdtemp(join(tmpdir(), "evelyn-sde-"));
-  try {
-    const zipPath = join(dir, "sde.zip");
+  console.log(`Downloading SDE from ${SDE_ZIP_URL}...`);
+  const res = await fetch(SDE_ZIP_URL);
+  if (!res.ok) throw new Error(`Failed to download SDE: HTTP ${res.status}`);
+  const zipBuffer = new Uint8Array(await res.arrayBuffer());
 
-    console.log(`Downloading SDE from ${SDE_ZIP_URL}...`);
-    const res = await fetch(SDE_ZIP_URL);
-    if (!res.ok) throw new Error(`Failed to download SDE: HTTP ${res.status}`);
-    await writeFile(zipPath, Buffer.from(await res.arrayBuffer()));
+  console.log("Extracting fsd/npcCorporations.yaml...");
+  const files = unzipSync(zipBuffer, {
+    filter: (file) => file.name === "fsd/npcCorporations.yaml",
+  });
+  const entry = files["fsd/npcCorporations.yaml"];
+  if (!entry) throw new Error("fsd/npcCorporations.yaml not found in SDE zip");
+  const raw = new TextDecoder().decode(entry);
+  const corporations = yaml.load(raw);
 
-    console.log("Extracting fsd/npcCorporations.yaml...");
-    await execFileAsync("unzip", ["-o", zipPath, "fsd/npcCorporations.yaml", "-d", dir]);
+  const data = [];
+  for (const [corporationIdStr, corporation] of Object.entries(corporations)) {
+    if (corporation.deleted) continue;
 
-    const raw = await readFile(join(dir, "fsd", "npcCorporations.yaml"), "utf8");
-    const corporations = yaml.load(raw);
+    const name = corporation.name?.en;
+    if (!name) continue;
 
-    const data = [];
-    for (const [corporationIdStr, corporation] of Object.entries(corporations)) {
-      if (corporation.deleted) continue;
-
-      const name = corporation.name?.en;
-      if (!name) continue;
-
-      data.push({ corporationId: Number(corporationIdStr), name });
-    }
-
-    data.sort((a, b) => a.name.localeCompare(b.name));
-    await writeFile(OUTPUT_PATH, JSON.stringify(data));
-
-    console.log(`Wrote ${data.length} NPC corporations to ${OUTPUT_PATH}`);
-  } finally {
-    await rm(dir, { recursive: true, force: true });
+    data.push({ corporationId: Number(corporationIdStr), name });
   }
+
+  data.sort((a, b) => a.name.localeCompare(b.name));
+  await writeFile(OUTPUT_PATH, JSON.stringify(data));
+
+  console.log(`Wrote ${data.length} NPC corporations to ${OUTPUT_PATH}`);
 }
 
 main().catch((err) => {

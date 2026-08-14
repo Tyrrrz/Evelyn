@@ -11,66 +11,55 @@
 //
 //   node scripts/generate-blueprint-data.mjs
 //
-// It requires network access to developers.eveonline.com and a system `unzip` binary.
+// It requires network access to developers.eveonline.com.
 //
 // Docs: https://developers.eveonline.com/docs/services/static-data/
 
+import { unzipSync } from "fflate";
 import yaml from "js-yaml";
-import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
-
-const execFileAsync = promisify(execFile);
 
 const SDE_ZIP_URL =
   "https://developers.eveonline.com/static-data/eve-online-static-data-latest-yaml.zip";
 const OUTPUT_PATH = fileURLToPath(new URL("../src/esi/blueprintData.json", import.meta.url));
 
 async function main() {
-  const dir = await mkdtemp(join(tmpdir(), "evelyn-sde-"));
-  try {
-    const zipPath = join(dir, "sde.zip");
+  console.log(`Downloading SDE from ${SDE_ZIP_URL}...`);
+  const res = await fetch(SDE_ZIP_URL);
+  if (!res.ok) throw new Error(`Failed to download SDE: HTTP ${res.status}`);
+  const zipBuffer = new Uint8Array(await res.arrayBuffer());
 
-    console.log(`Downloading SDE from ${SDE_ZIP_URL}...`);
-    const res = await fetch(SDE_ZIP_URL);
-    if (!res.ok) throw new Error(`Failed to download SDE: HTTP ${res.status}`);
-    await writeFile(zipPath, Buffer.from(await res.arrayBuffer()));
+  console.log("Extracting fsd/blueprints.yaml...");
+  const files = unzipSync(zipBuffer, { filter: (file) => file.name === "fsd/blueprints.yaml" });
+  const entry = files["fsd/blueprints.yaml"];
+  if (!entry) throw new Error("fsd/blueprints.yaml not found in SDE zip");
+  const raw = new TextDecoder().decode(entry);
+  const blueprints = yaml.load(raw);
 
-    console.log("Extracting fsd/blueprints.yaml...");
-    await execFileAsync("unzip", ["-o", zipPath, "fsd/blueprints.yaml", "-d", dir]);
+  const data = {};
+  for (const [blueprintTypeIdStr, blueprint] of Object.entries(blueprints)) {
+    const manufacturing = blueprint.activities?.manufacturing;
+    const product = manufacturing?.products?.[0];
+    const materials = manufacturing?.materials;
+    if (!product || !materials?.length) continue;
+    // Guard against a blueprint's product being itself (shouldn't happen in the
+    // official SDE, but mirrors the same defensive check as before).
+    if (product.typeID === Number(blueprintTypeIdStr)) continue;
 
-    const raw = await readFile(join(dir, "fsd", "blueprints.yaml"), "utf8");
-    const blueprints = yaml.load(raw);
-
-    const data = {};
-    for (const [blueprintTypeIdStr, blueprint] of Object.entries(blueprints)) {
-      const manufacturing = blueprint.activities?.manufacturing;
-      const product = manufacturing?.products?.[0];
-      const materials = manufacturing?.materials;
-      if (!product || !materials?.length) continue;
-      // Guard against a blueprint's product being itself (shouldn't happen in the
-      // official SDE, but mirrors the same defensive check as before).
-      if (product.typeID === Number(blueprintTypeIdStr)) continue;
-
-      data[blueprintTypeIdStr] = {
-        productTypeId: product.typeID,
-        productQuantity: product.quantity,
-        materials: materials.map((m) => ({ typeId: m.typeID, quantity: m.quantity })),
-      };
-    }
-
-    const sortedData = Object.fromEntries(
-      Object.entries(data).sort(([a], [b]) => Number(a) - Number(b)),
-    );
-    await writeFile(OUTPUT_PATH, JSON.stringify(sortedData));
-
-    console.log(`Wrote ${Object.keys(sortedData).length} blueprint recipes to ${OUTPUT_PATH}`);
-  } finally {
-    await rm(dir, { recursive: true, force: true });
+    data[blueprintTypeIdStr] = {
+      productTypeId: product.typeID,
+      productQuantity: product.quantity,
+      materials: materials.map((m) => ({ typeId: m.typeID, quantity: m.quantity })),
+    };
   }
+
+  const sortedData = Object.fromEntries(
+    Object.entries(data).sort(([a], [b]) => Number(a) - Number(b)),
+  );
+  await writeFile(OUTPUT_PATH, JSON.stringify(sortedData));
+
+  console.log(`Wrote ${Object.keys(sortedData).length} blueprint recipes to ${OUTPUT_PATH}`);
 }
 
 main().catch((err) => {
