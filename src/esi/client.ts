@@ -74,7 +74,7 @@ async function esiGetAllPages<T>(path: string, extraSep = "&"): Promise<T[]> {
 }
 
 /**
- * Search NPC corporations by name against the hardcoded list (see npcCorporations.ts).
+ * Search NPC corporations by name against the bundled dataset (see npcCorporations.ts).
  * The ESI search endpoint does not reliably return NPC corporations, so we search locally instead.
  */
 export function searchCorporations(query: string): Corporation[] {
