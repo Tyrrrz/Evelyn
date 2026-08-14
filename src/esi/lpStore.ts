@@ -1,4 +1,4 @@
-import { getBlueprintInfo, isBlueprintTypeName } from "./blueprints.ts";
+import { getBlueprintInfo, isBlueprintTypeName } from "./client.ts";
 import {
   avgDailyVolume,
   bestBuyPrice,

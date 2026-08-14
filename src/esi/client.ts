@@ -1,4 +1,15 @@
-import { NPC_CORPORATIONS } from "./npcCorporations.ts";
+// NPC corporations rarely change, so instead of relying on the ESI search endpoint (which does
+// not reliably return NPC corporations), this data is bundled at build time from CCP's official
+// Static Data Export (SDE). See scripts/generate-npc-corporations.mjs for how
+// npcCorporationData.json is generated, and regenerate it there when new corporations are added.
+import npcCorporationData from "./npcCorporationData.json";
+
+// EVE's ESI API does not expose blueprint manufacturing recipes (materials/products). Blueprint
+// recipes are static game data that only changes when CCP ships an expansion or balance pass, so
+// instead of resolving them at runtime against a third-party API, this data is bundled at build
+// time from CCP's official Static Data Export (SDE). See scripts/generate-blueprint-data.mjs for
+// how blueprintData.json is generated, and regenerate it there when new blueprints are added.
+import blueprintData from "./blueprintData.json";
 
 const ESI_BASE = "https://esi.evetech.net/latest";
 
@@ -38,6 +49,25 @@ export interface TypeInfo {
   type_id: number;
 }
 
+export interface BlueprintInfo {
+  productTypeId: number;
+  productQuantity: number;
+  materials: { typeId: number; quantity: number }[];
+}
+
+/** All blueprint item type names in EVE end with this suffix. */
+export function isBlueprintTypeName(typeName: string): boolean {
+  return typeName.endsWith(" Blueprint");
+}
+
+/**
+ * Looks up the manufacturing recipe (product + materials) for a blueprint type. Returns null if
+ * the type isn't a manufacturable blueprint or isn't present in the bundled dataset.
+ */
+export function getBlueprintInfo(blueprintTypeId: number): BlueprintInfo | null {
+  return (blueprintData as Record<string, BlueprintInfo>)[blueprintTypeId] ?? null;
+}
+
 // Long-lived in-memory cache for type info (names don't change often)
 const typeInfoCache = new Map<number, TypeInfo>();
 
@@ -74,13 +104,14 @@ async function esiGetAllPages<T>(path: string, extraSep = "&"): Promise<T[]> {
 }
 
 /**
- * Search NPC corporations by name against the bundled dataset (see npcCorporations.ts).
+ * Search NPC corporations by name against the bundled dataset (see scripts/generate-npc-corporations.mjs).
  * The ESI search endpoint does not reliably return NPC corporations, so we search locally instead.
  */
 export function searchCorporations(query: string): Corporation[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
-  return NPC_CORPORATIONS.filter((c) => c.name.toLowerCase().includes(q))
+  return (npcCorporationData as { corporationId: number; name: string }[])
+    .filter((c) => c.name.toLowerCase().includes(q))
     .map((c) => ({ corporation_id: c.corporationId, name: c.name }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
