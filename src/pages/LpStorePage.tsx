@@ -28,10 +28,7 @@ export function LpStorePage() {
   };
 
   const handleQueryKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      if (suggestions.length > 0) selectCorp(suggestions[0]);
-      else handleSearch();
-    }
+    if (e.key === "Enter") handleSearch();
   };
 
   const selectCorp = (corp: Corporation) => {
