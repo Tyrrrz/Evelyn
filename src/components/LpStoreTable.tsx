@@ -93,21 +93,7 @@ function IskLpCell({ ratio, bestPrice }: { ratio: number | null; bestPrice: numb
   );
 }
 
-export function LpStoreTable({
-  rows,
-  fetchedAt,
-  includeOtherItems,
-  onIncludeOtherItemsChange,
-  includeBlueprints,
-  onIncludeBlueprintsChange,
-}: {
-  rows: LpStoreRow[];
-  fetchedAt: Date | null;
-  includeOtherItems: boolean;
-  onIncludeOtherItemsChange: (checked: boolean) => void;
-  includeBlueprints: boolean;
-  onIncludeBlueprintsChange: (checked: boolean) => void;
-}) {
+export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
   const [sortKey, setSortKey] = useState<SortKey>("lpToIskBuy");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -119,40 +105,11 @@ export function LpStoreTable({
     }
   };
 
-  const filtered = rows.filter((row) => {
-    if (!includeOtherItems && row.requiredItems.length > 0) return false;
-    return true;
-  });
-
-  const sorted = sortRows(filtered, sortKey, sortDir);
+  const sorted = sortRows(rows, sortKey, sortDir);
   const thProps = { sortKey, sortDir, onSort: handleSort };
 
   return (
     <>
-      <div className="mb-2 flex flex-wrap items-center gap-4 text-xs text-zinc-500">
-        <span>{sorted.length} offers</span>
-        {fetchedAt && <span>Data fetched at {fetchedAt.toLocaleString()}</span>}
-      </div>
-      <div className="mb-4 flex flex-wrap items-center gap-4 text-sm">
-        <label className="flex items-center gap-2 text-zinc-300">
-          <input
-            type="checkbox"
-            checked={includeOtherItems}
-            onChange={(e) => onIncludeOtherItemsChange(e.target.checked)}
-            className="rounded border-zinc-600 bg-zinc-800"
-          />
-          Include exchanges requiring other items
-        </label>
-        <label className="flex items-center gap-2 text-zinc-300">
-          <input
-            type="checkbox"
-            checked={includeBlueprints}
-            onChange={(e) => onIncludeBlueprintsChange(e.target.checked)}
-            className="rounded border-zinc-600 bg-zinc-800"
-          />
-          Include blueprints
-        </label>
-      </div>
       <div className="overflow-x-auto rounded border border-zinc-800">
         <table className="min-w-full text-sm">
           <thead className="bg-zinc-800 text-zinc-300">
