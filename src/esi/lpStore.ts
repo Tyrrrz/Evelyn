@@ -21,8 +21,6 @@ export interface LpStoreRow {
   /** Materials needed to manufacture `typeName`, if this offer's reward is a blueprint copy. */
   blueprintMaterials: { typeId: number; typeName: string; quantity: number }[];
   quantity: number;
-  /** Whether this offer's reward is a blueprint copy that must be manufactured to obtain `typeName`. */
-  producedFromBlueprint: boolean;
   bestBuy: number | null;
   bestSell: number | null;
   dailyVolume: number;
@@ -228,7 +226,6 @@ export async function fetchLpStoreRows(
               quantity: ri.quantity,
             })),
             quantity: effectiveQuantity,
-            producedFromBlueprint: blueprintInfo !== null,
             bestBuy: buy,
             bestSell: sell,
             dailyVolume: dailyVol,

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { LpStoreRow } from "../esi/lpStore.ts";
+import { fmt, fmtDecimal } from "../utils/fmt.ts";
 
 type SortKey = keyof Pick<
   LpStoreRow,
@@ -7,30 +8,6 @@ type SortKey = keyof Pick<
 >;
 
 type SortDir = "asc" | "desc";
-
-/**
- * Universal number formatter: values below 10,000 are shown rounded (no
- * decimals, no abbreviation); values at or above 10,000 are abbreviated
- * using k/m/b, with 1 decimal point of precision.
- */
-function fmt(n: number | null | undefined): string {
-  if (n === null || n === undefined) return "—";
-  const abs = Math.abs(n);
-  if (abs >= 1e9) return trimTrailingZeroDecimal((n / 1e9).toFixed(1)) + "b";
-  if (abs >= 1e6) return trimTrailingZeroDecimal((n / 1e6).toFixed(1)) + "m";
-  if (abs >= 1e4) return trimTrailingZeroDecimal((n / 1e3).toFixed(1)) + "k";
-  return Math.round(n).toLocaleString("en-US");
-}
-
-/** Formats a number with 1 decimal of precision, dropping it entirely if it's all zeroes. */
-function fmtDecimal(n: number): string {
-  return trimTrailingZeroDecimal(n.toFixed(1));
-}
-
-/** Drops a trailing ".0" from a fixed-precision number string. */
-function trimTrailingZeroDecimal(s: string): string {
-  return s.endsWith(".0") ? s.slice(0, -2) : s;
-}
 
 function sortRows(rows: LpStoreRow[], key: SortKey, dir: SortDir): LpStoreRow[] {
   return [...rows].sort((a, b) => {
@@ -229,7 +206,7 @@ export function LpStoreTable({
               const showLiquidity = row.lpCost > 0 && row.immediateLiquidityIsk > 0;
               const hasItemLists =
                 row.requiredItems.length > 0 || row.blueprintMaterials.length > 0;
-              const itemLabel = `${row.quantity > 1 ? `${fmt(row.quantity)} × ` : ""}${row.typeName}${row.producedFromBlueprint ? " (Blueprint)" : ""}`;
+              const itemLabel = `${row.quantity > 1 ? `${fmt(row.quantity)} × ` : ""}${row.typeName}${row.blueprintMaterials.length > 0 ? " (Blueprint)" : ""}`;
               return (
                 <tr key={row.offerId} className={i % 2 === 0 ? "bg-zinc-950" : "bg-zinc-900"}>
                   <td className="px-3 py-2 font-medium">
