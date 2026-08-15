@@ -23,6 +23,7 @@ export function LpStorePage() {
   const [error, setError] = useState<string | null>(null);
   const [includeOtherItems, setIncludeOtherItems] = useState(true);
   const [includeBlueprints, setIncludeBlueprints] = useState(false);
+  const [includeVolatileMarkets, setIncludeVolatileMarkets] = useState(false);
 
   const handleCorpChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const corp = corporations.find((c) => String(c.corporation_id) === e.target.value) ?? null;
@@ -63,7 +64,11 @@ export function LpStorePage() {
     if (selectedCorp) void loadLpStoreData(selectedCorp, regionId, checked);
   };
 
-  const filteredRows = rows.filter((row) => includeOtherItems || row.requiredItems.length === 0);
+  const filteredRows = rows.filter(
+    (row) =>
+      (includeOtherItems || row.requiredItems.length === 0) &&
+      (includeVolatileMarkets || row.sellMarketWarnings.length === 0),
+  );
 
   return (
     <div className="min-h-screen bg-zinc-950 font-sans text-zinc-100">
@@ -149,6 +154,15 @@ export function LpStorePage() {
               className="rounded border-zinc-600 bg-zinc-800"
             />
             Include blueprints
+          </label>
+          <label className="flex items-center gap-2 text-zinc-300">
+            <input
+              type="checkbox"
+              checked={includeVolatileMarkets}
+              onChange={(e) => setIncludeVolatileMarkets(e.target.checked)}
+              className="rounded border-zinc-600 bg-zinc-800"
+            />
+            Include volatile markets
           </label>
         </div>
 
