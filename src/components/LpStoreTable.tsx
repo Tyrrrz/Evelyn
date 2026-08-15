@@ -145,7 +145,7 @@ export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
               </Th>
               <Th
                 col="rating"
-                title="Corporation-relative 0-1 rating combining buy price, daily volume and immediate liquidity, ranked against this corporation's other offers. Stars: 3 = top 1%, 2 = top 5%, 1 = top 10%, — = everything else."
+                title="Corporation-relative 0-1 rating rewarding two strategies: selling at market (high sell price AND high daily volume) or dumping into buy orders (high buy price AND high immediate liquidity), ranked against this corporation's other offers. Offers strong at both strategies rank highest. Stars: 3 = top 1%, 2 = top 5%, 1 = top 10%, — = everything else."
                 {...thProps}
               >
                 Rating
