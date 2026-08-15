@@ -61,7 +61,7 @@ export function LpStorePage() {
     if (loading) return;
 
     setIncludeBlueprints(checked);
-    if (selectedCorp) void loadLpStoreData(selectedCorp, regionId, checked);
+    if (selectedCorp && fetchedAt) void loadLpStoreData(selectedCorp, regionId, checked);
   };
 
   const filteredRows = rows.filter(
@@ -95,7 +95,8 @@ export function LpStorePage() {
               <select
                 value={selectedCorp?.corporation_id ?? ""}
                 onChange={handleCorpChange}
-                className="w-64 rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                disabled={loading}
+                className="w-64 rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="" disabled>
                   Select a corporation…
@@ -112,7 +113,8 @@ export function LpStorePage() {
               <select
                 value={regionId}
                 onChange={(e) => setRegionId(Number(e.target.value))}
-                className="w-64 rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                disabled={loading}
+                className="w-64 rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {regions.map((r) => (
                   <option key={r.regionId} value={r.regionId}>
@@ -140,6 +142,7 @@ export function LpStorePage() {
             <input
               type="checkbox"
               checked={includeOtherItems}
+              disabled={loading}
               onChange={(e) => setIncludeOtherItems(e.target.checked)}
               className="rounded border-zinc-600 bg-zinc-800"
             />
@@ -159,6 +162,7 @@ export function LpStorePage() {
             <input
               type="checkbox"
               checked={includeVolatileMarkets}
+              disabled={loading}
               onChange={(e) => setIncludeVolatileMarkets(e.target.checked)}
               className="rounded border-zinc-600 bg-zinc-800"
             />
