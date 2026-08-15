@@ -61,6 +61,11 @@ function effectiveLiquidityLp(row: {
   return row.lpCost > 0 && row.immediateLiquidityIsk > 0 ? row.immediateLiquidityLp : 0;
 }
 
+/** How much ISK can be liquidated right now, or 0 if the offer isn't liquid at all (see `rating`). */
+function effectiveLiquidityIsk(row: { lpCost: number; immediateLiquidityIsk: number }): number {
+  return row.lpCost > 0 && row.immediateLiquidityIsk > 0 ? row.immediateLiquidityIsk : 0;
+}
+
 /**
  * Ranks each value's position among its peers, as a fraction from 0 (worst) to 1 (best).
  * `null` is treated as the worst possible value. Equal values (including groups of `null`)
@@ -94,34 +99,34 @@ function relativeRanks(values: (number | null)[]): number[] {
 
 /**
  * Computes the corporation-relative {@link LpStoreRow.rating} for each row, rewarding two
- * complementary strategies rather than averaging all metrics independently: selling at market
- * (high sell price + high daily volume to actually move that volume) and dumping instantly into
- * buy orders (high buy price + high immediate liquidity to actually fill at that price). Each
- * strategy's score is the geometric mean of its two ranks, so an offer only scores well on a
- * strategy if *both* of its metrics are strong — being great at only one (e.g. volume alone) no
- * longer outscores an offer that's good at both metrics of a strategy (e.g. sell and volume).
- * The final rating is the average of the two strategy scores, so offers strong at both
- * strategies rank above those strong at only one, which ranks above those strong at neither.
+ * complementary strategies rather than averaging all metrics independently: profitability
+ * (high LP volume + high sell price, so the offer both moves fast and sells for a lot) and
+ * liquidity (high immediate LP liquidity + high immediate ISK liquidity, so the offer can
+ * actually be dumped into buy orders right now). Each strategy's score is the geometric mean
+ * of its two ranks, so an offer only scores well on a strategy if *both* of its metrics are
+ * strong — being great at only one no longer outscores an offer that's good at both metrics of
+ * a strategy. The final rating is the geometric mean of the two strategy scores, so offers
+ * strong at both strategies rank above those strong at only one, which ranks above those
+ * strong at neither.
  */
 function computeRatings(
   rows: {
-    lpToIskBuy: number | null;
-    lpToIskSell: number | null;
     dailyLpVolume: number | null;
+    bestSell: number | null;
     lpCost: number;
     immediateLiquidityLp: number;
     immediateLiquidityIsk: number;
   }[],
 ): number[] {
-  const sellRanks = relativeRanks(rows.map((r) => r.lpToIskSell));
-  const buyRanks = relativeRanks(rows.map((r) => r.lpToIskBuy));
   const volumeRanks = relativeRanks(rows.map((r) => r.dailyLpVolume));
-  const liquidityRanks = relativeRanks(rows.map((r) => effectiveLiquidityLp(r)));
+  const sellRanks = relativeRanks(rows.map((r) => r.bestSell));
+  const liquidityLpRanks = relativeRanks(rows.map((r) => effectiveLiquidityLp(r)));
+  const liquidityIskRanks = relativeRanks(rows.map((r) => effectiveLiquidityIsk(r)));
 
   return rows.map((_, i) => {
-    const sellVolumeScore = Math.sqrt(sellRanks[i] * volumeRanks[i]);
-    const buyLiquidityScore = Math.sqrt(buyRanks[i] * liquidityRanks[i]);
-    return (sellVolumeScore + buyLiquidityScore) / 2;
+    const profitabilityScore = Math.sqrt(volumeRanks[i] * sellRanks[i]);
+    const liquidityScore = Math.sqrt(liquidityLpRanks[i] * liquidityIskRanks[i]);
+    return Math.sqrt(profitabilityScore * liquidityScore);
   });
 }
 
