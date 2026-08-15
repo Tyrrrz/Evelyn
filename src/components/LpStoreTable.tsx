@@ -10,7 +10,7 @@ type SortKey = keyof Pick<
   | "lpToIskBuy"
   | "lpToIskSell"
   | "immediateLiquidityLp"
-  | "ratingScore"
+  | "rating"
 >;
 
 type SortDir = "asc" | "desc";
@@ -88,10 +88,10 @@ function Th({
   );
 }
 
-function RatingCell({ rating }: { rating: number }) {
+function RatingCell({ rating, stars }: { rating: number; stars: number }) {
   return (
-    <td className="px-3 py-2 tabular-nums" style={{ color: ratioColor(rating, 0, 3) }}>
-      {rating > 0 ? "★".repeat(rating) + "☆".repeat(3 - rating) : "—"}
+    <td className="px-3 py-2 tabular-nums" style={{ color: ratioColor(rating, 0, 1) }}>
+      {stars > 0 ? "★".repeat(stars) + "☆".repeat(3 - stars) : "—"}
     </td>
   );
 }
@@ -108,7 +108,7 @@ function IskLpCell({ ratio, bestPrice }: { ratio: number | null; bestPrice: numb
 }
 
 export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
-  const [sortKey, setSortKey] = useState<SortKey>("ratingScore");
+  const [sortKey, setSortKey] = useState<SortKey>("rating");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   const handleSort = (key: SortKey) => {
@@ -136,8 +136,8 @@ export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
                 Item
               </Th>
               <Th
-                col="ratingScore"
-                title="Heuristic 0-3 star rating: 3 = buy price > 1000 ISK/LP, daily volume > 500k LP AND immediate liquidity > 300k LP; 2 = buy price > 900 ISK/LP, daily volume > 500k LP OR immediate liquidity > 300k LP; 1 = buy price > 700 ISK/LP, daily volume > 500k LP OR immediate liquidity > 300k LP; 0 (—) = everything else. Sorting ranks offers within the same star tier by how they compare to this corporation's other offers."
+                col="rating"
+                title="Corporation-relative 0-1 rating combining buy price, daily volume and immediate liquidity, ranked against this corporation's other offers. Stars: 3 = top 1%, 2 = top 5%, 1 = top 10%, — = everything else."
                 {...thProps}
               >
                 Rating
@@ -222,7 +222,7 @@ export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
                       itemLabel
                     )}
                   </td>
-                  <RatingCell rating={row.rating} />
+                  <RatingCell rating={row.rating} stars={row.stars} />
                   <td className="px-3 py-2 text-xs text-zinc-300">
                     <div>{fmt(row.lpCost)} LP</div>
                     {row.iskCost > 0 && (
