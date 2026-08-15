@@ -4,7 +4,13 @@ import { fmt, fmtDecimal } from "../utils/fmt.ts";
 
 type SortKey = keyof Pick<
   LpStoreRow,
-  "typeName" | "lpCost" | "dailyLpVolume" | "lpToIskBuy" | "lpToIskSell" | "immediateLiquidityLp"
+  | "typeName"
+  | "lpCost"
+  | "dailyLpVolume"
+  | "lpToIskBuy"
+  | "lpToIskSell"
+  | "immediateLiquidityLp"
+  | "rating"
 >;
 
 type SortDir = "asc" | "desc";
@@ -82,6 +88,14 @@ function Th({
   );
 }
 
+function RatingCell({ rating }: { rating: number }) {
+  return (
+    <td className="px-3 py-2 tabular-nums" style={{ color: ratioColor(rating, 0, 3) }}>
+      {rating > 0 ? "★".repeat(rating) + "☆".repeat(3 - rating) : "—"}
+    </td>
+  );
+}
+
 function IskLpCell({ ratio, bestPrice }: { ratio: number | null; bestPrice: number | null }) {
   return (
     <td className="px-3 py-2 tabular-nums">
@@ -120,6 +134,13 @@ export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
                 {...thProps}
               >
                 Item
+              </Th>
+              <Th
+                col="rating"
+                title="Heuristic 0-3 star rating of the offer's economics: 3 = liquid (buy price ≥ 900 ISK/LP, ≥ 300k LP of buy-order depth) AND profitable (sell price ≥ 1200 ISK/LP, ≥ 500k LP of daily volume); 2 = liquid OR profitable; 1 = barely liquid or barely profitable (half of the above thresholds); 0 (—) = neither"
+                {...thProps}
+              >
+                Rating
               </Th>
               <Th
                 col="lpCost"
@@ -201,6 +222,7 @@ export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
                       itemLabel
                     )}
                   </td>
+                  <RatingCell rating={row.rating} />
                   <td className="px-3 py-2 text-xs text-zinc-300">
                     <div>{fmt(row.lpCost)} LP</div>
                     {row.iskCost > 0 && (

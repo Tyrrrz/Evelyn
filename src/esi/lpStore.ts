@@ -36,9 +36,57 @@ export interface LpStoreRow {
   blueprintMaterialsIskCost: number;
   immediateLiquidityLp: number;
   immediateLiquidityIsk: number;
+  /** Heuristic 0-3 rating of the offer's economics — see {@link computeRating}. */
+  rating: number;
 }
 
 const BATCH_SIZE = 10;
+
+// Thresholds for the heuristic 0-3 star rating (see `computeRating`). "Liquidity" here
+// measures how readily an offer's LP can be converted to ISK: via the buy-order book
+// (immediate, but capped by depth) or via daily sell-side market volume (ongoing, but
+// requires holding/relisting the item). Meeting a threshold at half its value only
+// counts as "barely" meeting it.
+const LIQUIDITY_BUY_ISK_PER_LP = 900;
+const LIQUIDITY_BUY_LP = 300_000;
+const PROFITABILITY_SELL_ISK_PER_LP = 1200;
+const PROFITABILITY_SELL_LP_VOLUME = 500_000;
+
+/**
+ * Heuristically rates an offer's economics from 0 to 3 stars:
+ * - 3 stars: both liquid (sellable now, in bulk, into the buy-order book) and profitable
+ *   (worth more than it costs when sold at market over time)
+ * - 2 stars: liquid OR profitable, fully
+ * - 1 star: barely liquid or barely profitable (half the thresholds above)
+ * - 0 stars: neither, i.e. not a worthwhile trade
+ */
+function computeRating(row: {
+  lpCost: number;
+  lpToIskBuy: number | null;
+  immediateLiquidityLp: number;
+  immediateLiquidityIsk: number;
+  lpToIskSell: number | null;
+  dailyLpVolume: number | null;
+}): number {
+  const liquidityLp =
+    row.lpCost > 0 && row.immediateLiquidityIsk > 0 ? row.immediateLiquidityLp : 0;
+
+  const isLiquid = (threshold: number) =>
+    row.lpToIskBuy !== null &&
+    row.lpToIskBuy >= LIQUIDITY_BUY_ISK_PER_LP * threshold &&
+    liquidityLp >= LIQUIDITY_BUY_LP * threshold;
+
+  const isProfitable = (threshold: number) =>
+    row.lpToIskSell !== null &&
+    row.dailyLpVolume !== null &&
+    row.lpToIskSell >= PROFITABILITY_SELL_ISK_PER_LP * threshold &&
+    row.dailyLpVolume >= PROFITABILITY_SELL_LP_VOLUME * threshold;
+
+  if (isLiquid(1) && isProfitable(1)) return 3;
+  if (isLiquid(1) || isProfitable(1)) return 2;
+  if (isLiquid(0.5) || isProfitable(0.5)) return 1;
+  return 0;
+}
 
 function memoizeByTypeId<T>(
   fetcher: (typeId: number) => Promise<T>,
@@ -211,6 +259,15 @@ export async function fetchLpStoreRows(
             requiredIskCost,
           );
 
+          const rating = computeRating({
+            lpCost: offer.lp_cost,
+            lpToIskBuy,
+            immediateLiquidityLp: immediateLiquidity.lp,
+            immediateLiquidityIsk: immediateLiquidity.isk,
+            lpToIskSell,
+            dailyLpVolume,
+          });
+
           return {
             offerId: offer.offer_id,
             typeName: typeInfoMap.get(effectiveTypeId)?.name ?? `Type ${effectiveTypeId}`,
@@ -240,6 +297,7 @@ export async function fetchLpStoreRows(
             blueprintMaterialsIskCost,
             immediateLiquidityLp: immediateLiquidity.lp,
             immediateLiquidityIsk: immediateLiquidity.isk,
+            rating,
           } satisfies LpStoreRow;
         } catch (e) {
           console.error("Failed to process LP offer", offer.offer_id, "type", offer.type_id, e);
