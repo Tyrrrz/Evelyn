@@ -88,9 +88,17 @@ function Th({
   );
 }
 
-function RatingCell({ rating, stars }: { rating: number; stars: number }) {
+/** Maps a 0-3 star rating to the same red/yellow/green scale as {@link ratioColor}. */
+function starColor(stars: number): string {
+  if (stars <= 0) return "#71717a"; // zinc-500, default
+  if (stars === 1) return ratioColor(0, 0, 1); // red
+  if (stars === 2) return ratioColor(0.5, 0, 1); // yellowish
+  return ratioColor(1, 0, 1); // green
+}
+
+function RatingCell({ stars }: { stars: number }) {
   return (
-    <td className="px-3 py-2 tabular-nums" style={{ color: ratioColor(rating, 0, 1) }}>
+    <td className="px-3 py-2 tabular-nums" style={{ color: starColor(stars) }}>
       {stars > 0 ? "★".repeat(stars) + "☆".repeat(3 - stars) : "—"}
     </td>
   );
@@ -222,7 +230,7 @@ export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
                       itemLabel
                     )}
                   </td>
-                  <RatingCell rating={row.rating} stars={row.stars} />
+                  <RatingCell stars={row.stars} />
                   <td className="px-3 py-2 text-xs text-zinc-300">
                     <div>{fmt(row.lpCost)} LP</div>
                     {row.iskCost > 0 && (
