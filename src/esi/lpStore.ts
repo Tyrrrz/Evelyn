@@ -26,7 +26,7 @@ export interface LpStoreRow {
   bestBuy: number | null;
   bestSell: number | null;
   /** Whether the sell-side market looks volatile or manipulated (see isMarketVolatile). */
-  isSellMarketVolatile: boolean;
+  isMarketVolatile: boolean;
   dailyVolume: number;
   normalizedDailyVolume: number;
   dailyLpVolume: number | null;
@@ -234,7 +234,7 @@ export async function fetchLpStoreRows(
             quantity: effectiveQuantity,
             bestBuy: buy,
             bestSell: sell,
-            isSellMarketVolatile: sellMarketVolatile,
+            isMarketVolatile: sellMarketVolatile,
             dailyVolume: dailyVol,
             normalizedDailyVolume: normalizedDailyVol,
             dailyLpVolume,
