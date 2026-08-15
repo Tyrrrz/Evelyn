@@ -96,7 +96,7 @@ export function LpStorePage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-400">Region</label>
+              <label className="mb-1 block text-sm font-medium text-zinc-400">Market Region</label>
               <select
                 value={regionId}
                 onChange={(e) => setRegionId(Number(e.target.value))}
