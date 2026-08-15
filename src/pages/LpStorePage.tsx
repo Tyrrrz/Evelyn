@@ -61,7 +61,7 @@ export function LpStorePage() {
     if (loading) return;
 
     setIncludeBlueprints(checked);
-    if (selectedCorp && rows.length > 0) void loadLpStoreData(selectedCorp, regionId, checked);
+    if (selectedCorp && fetchedAt) void loadLpStoreData(selectedCorp, regionId, checked);
   };
 
   const filteredRows = rows.filter(
