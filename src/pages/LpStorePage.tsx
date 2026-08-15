@@ -11,8 +11,8 @@ interface Corporation {
 }
 
 export function LpStorePage() {
-  const corporations = useMemo(() => getCorporations(), []);
-  const regions = useMemo(() => getRegions(), []);
+  const corporations = useMemo(() => getCorporations(), [getCorporations]);
+  const regions = useMemo(() => getRegions(), [getRegions]);
 
   const [selectedCorp, setSelectedCorp] = useState<Corporation | null>(null);
   const [regionId, setRegionId] = useState(DEFAULT_REGION_ID);
