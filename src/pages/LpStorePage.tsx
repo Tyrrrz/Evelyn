@@ -57,6 +57,8 @@ export function LpStorePage() {
   };
 
   const handleIncludeBlueprintsChange = (checked: boolean) => {
+    if (loading) return;
+
     setIncludeBlueprints(checked);
     if (selectedCorp) void loadLpStoreData(selectedCorp, regionId, checked);
   };
@@ -142,6 +144,7 @@ export function LpStorePage() {
             <input
               type="checkbox"
               checked={includeBlueprints}
+              disabled={loading}
               onChange={(e) => handleIncludeBlueprintsChange(e.target.checked)}
               className="rounded border-zinc-600 bg-zinc-800"
             />
