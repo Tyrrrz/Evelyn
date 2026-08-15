@@ -221,3 +221,29 @@ export function avgDailyVolume(history: MarketHistoryEntry[]): number {
   if (!recent.length) return 0;
   return recent.reduce((s, h) => s + h.volume, 0) / recent.length;
 }
+
+/**
+ * Detects whether a market looks volatile or manipulated and is therefore risky to rely on for
+ * liquidation, even if the raw sell price looks attractive:
+ * - The average price has jumped sharply over the last few days relative to the prior week — a
+ *   potential hallmark of a market being pumped (or wash-traded) rather than one that has settled
+ *   at a new, sustainable price.
+ */
+export function isMarketVolatile(
+  history: MarketHistoryEntry[],
+  buy: number | null,
+  sell: number | null,
+): boolean {
+  if (buy !== null && sell !== null && buy > 0 && sell / buy >= 1.5) return true;
+
+  const recent = history.slice(-3);
+  const prior = history.slice(-10, -3);
+  if (recent.length && prior.length) {
+    const recentAvgPrice = recent.reduce((s, h) => s + h.average, 0) / recent.length;
+    const priorAvgPrice = prior.reduce((s, h) => s + h.average, 0) / prior.length;
+
+    if (priorAvgPrice > 0 && recentAvgPrice / priorAvgPrice >= 1.3) return true;
+  }
+
+  return false;
+}
