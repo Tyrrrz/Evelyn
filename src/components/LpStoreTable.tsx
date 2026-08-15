@@ -137,7 +137,7 @@ export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
               </Th>
               <Th
                 col="rating"
-                title="Heuristic 0-3 star rating of the offer's economics: 3 = liquid (buy price ≥ 900 ISK/LP, ≥ 300k LP of buy-order depth) AND profitable (sell price ≥ 1200 ISK/LP, ≥ 500k LP of daily volume); 2 = liquid OR profitable; 1 = barely liquid or barely profitable (half of the above thresholds); 0 (—) = neither"
+                title="Heuristic 0-3 star rating: 3 = buy price > 1000 ISK/LP, daily volume > 500k LP AND immediate liquidity > 300k LP; 2 = buy price > 900 ISK/LP, daily volume > 500k LP OR immediate liquidity > 300k LP; 1 = buy price > 700 ISK/LP, daily volume > 500k LP OR immediate liquidity > 300k LP; 0 (—) = everything else"
                 {...thProps}
               >
                 Rating

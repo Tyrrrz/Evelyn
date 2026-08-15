@@ -42,49 +42,40 @@ export interface LpStoreRow {
 
 const BATCH_SIZE = 10;
 
-// Thresholds for the heuristic 0-3 star rating (see `computeRating`). "Liquidity" here
-// measures how readily an offer's LP can be converted to ISK: via the buy-order book
-// (immediate, but capped by depth) or via daily sell-side market volume (ongoing, but
-// requires holding/relisting the item). Meeting a threshold at half its value only
-// counts as "barely" meeting it.
-const LIQUIDITY_BUY_ISK_PER_LP = 900;
-const LIQUIDITY_BUY_LP = 300_000;
-const PROFITABILITY_SELL_ISK_PER_LP = 1200;
-const PROFITABILITY_SELL_LP_VOLUME = 500_000;
+// Thresholds for the heuristic 0-3 star rating (see `computeRating`). "Volume" is the
+// daily sell-side market volume, in LP terms (ongoing liquidity, but requires
+// holding/relisting the item); "liquidity" is how much LP can be sold right now into the
+// existing buy-order book (immediate, but capped by depth).
+const RATING_3_BUY_ISK_PER_LP = 1000;
+const RATING_2_BUY_ISK_PER_LP = 900;
+const RATING_1_BUY_ISK_PER_LP = 700;
+const VOLUME_LP_THRESHOLD = 500_000;
+const LIQUIDITY_LP_THRESHOLD = 300_000;
 
 /**
  * Heuristically rates an offer's economics from 0 to 3 stars:
- * - 3 stars: both liquid (sellable now, in bulk, into the buy-order book) and profitable
- *   (worth more than it costs when sold at market over time)
- * - 2 stars: liquid OR profitable, fully
- * - 1 star: barely liquid or barely profitable (half the thresholds above)
- * - 0 stars: neither, i.e. not a worthwhile trade
+ * - 3 stars: buy price above 1000 ISK/LP, volume above 500k LP AND liquidity above 300k LP
+ * - 2 stars: buy price above 900 ISK/LP, volume above 500k LP OR liquidity above 300k LP
+ * - 1 star: buy price above 700 ISK/LP, volume above 500k LP OR liquidity above 300k LP
+ * - 0 stars: everything else
  */
 function computeRating(row: {
   lpCost: number;
   lpToIskBuy: number | null;
   immediateLiquidityLp: number;
   immediateLiquidityIsk: number;
-  lpToIskSell: number | null;
   dailyLpVolume: number | null;
 }): number {
   const liquidityLp =
     row.lpCost > 0 && row.immediateLiquidityIsk > 0 ? row.immediateLiquidityLp : 0;
 
-  const isLiquid = (threshold: number) =>
-    row.lpToIskBuy !== null &&
-    row.lpToIskBuy >= LIQUIDITY_BUY_ISK_PER_LP * threshold &&
-    liquidityLp >= LIQUIDITY_BUY_LP * threshold;
+  const hasVolume = row.dailyLpVolume !== null && row.dailyLpVolume > VOLUME_LP_THRESHOLD;
+  const hasLiquidity = liquidityLp > LIQUIDITY_LP_THRESHOLD;
 
-  const isProfitable = (threshold: number) =>
-    row.lpToIskSell !== null &&
-    row.dailyLpVolume !== null &&
-    row.lpToIskSell >= PROFITABILITY_SELL_ISK_PER_LP * threshold &&
-    row.dailyLpVolume >= PROFITABILITY_SELL_LP_VOLUME * threshold;
-
-  if (isLiquid(1) && isProfitable(1)) return 3;
-  if (isLiquid(1) || isProfitable(1)) return 2;
-  if (isLiquid(0.5) || isProfitable(0.5)) return 1;
+  if (row.lpToIskBuy === null) return 0;
+  if (row.lpToIskBuy > RATING_3_BUY_ISK_PER_LP && hasVolume && hasLiquidity) return 3;
+  if (row.lpToIskBuy > RATING_2_BUY_ISK_PER_LP && (hasVolume || hasLiquidity)) return 2;
+  if (row.lpToIskBuy > RATING_1_BUY_ISK_PER_LP && (hasVolume || hasLiquidity)) return 1;
   return 0;
 }
 
@@ -264,7 +255,6 @@ export async function fetchLpStoreRows(
             lpToIskBuy,
             immediateLiquidityLp: immediateLiquidity.lp,
             immediateLiquidityIsk: immediateLiquidity.isk,
-            lpToIskSell,
             dailyLpVolume,
           });
 
