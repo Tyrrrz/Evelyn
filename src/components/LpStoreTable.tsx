@@ -82,11 +82,29 @@ function Th({
   );
 }
 
-function IskLpCell({ ratio, bestPrice }: { ratio: number | null; bestPrice: number | null }) {
+function IskLpCell({
+  ratio,
+  bestPrice,
+  warnings,
+}: {
+  ratio: number | null;
+  bestPrice: number | null;
+  warnings?: string[];
+}) {
   return (
     <td className="px-3 py-2 tabular-nums">
-      <div className="font-semibold" style={{ color: ratioColor(ratio, 200, 1200) }}>
-        {ratio !== null ? fmt(ratio) + " ISK/LP" : "—"}
+      <div className="flex items-center gap-1.5">
+        <div className="font-semibold" style={{ color: ratioColor(ratio, 200, 1200) }}>
+          {ratio !== null ? fmt(ratio) + " ISK/LP" : "—"}
+        </div>
+        {warnings && warnings.length > 0 && (
+          <span
+            className="text-yellow-500"
+            title={`Volatile or manipulated market — ${warnings.join("; ")}. This exchange may be difficult to liquidate, especially if volume is low.`}
+          >
+            ⚠
+          </span>
+        )}
       </div>
       <div className="text-xs text-zinc-500">{fmt(bestPrice)} ISK</div>
     </td>
@@ -217,7 +235,11 @@ export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
                       </div>
                     )}
                   </td>
-                  <IskLpCell ratio={row.lpToIskSell} bestPrice={row.bestSell} />
+                  <IskLpCell
+                    ratio={row.lpToIskSell}
+                    bestPrice={row.bestSell}
+                    warnings={row.sellMarketWarnings}
+                  />
                   <IskLpCell ratio={row.lpToIskBuy} bestPrice={row.bestBuy} />
                   <td className="px-3 py-2 text-zinc-300 tabular-nums">
                     <div

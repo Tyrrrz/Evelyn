@@ -3,6 +3,7 @@ import {
   bestBuyPrice,
   bestSellPrice,
   buyOrderLevels,
+  detectMarketVolatility,
   getBlueprintInfo,
   getLpOffers,
   getMarketHistory,
@@ -24,6 +25,8 @@ export interface LpStoreRow {
   quantity: number;
   bestBuy: number | null;
   bestSell: number | null;
+  /** Reasons the sell-side market looks volatile or manipulated, if any (see detectMarketVolatility). */
+  sellMarketWarnings: string[];
   dailyVolume: number;
   normalizedDailyVolume: number;
   dailyLpVolume: number | null;
@@ -166,6 +169,7 @@ export async function fetchLpStoreRows(
           const buy = bestBuyPrice(orders);
           const sell = bestSellPrice(orders);
           const levels = buy !== null ? buyOrderLevels(orders, buy) : [];
+          const sellMarketWarnings = detectMarketVolatility(history, buy, sell);
           const dailyVol = avgDailyVolume(history);
           const normalizedDailyVol = effectiveQuantity > 0 ? dailyVol / effectiveQuantity : 0;
           const dailyLpVolume = offer.lp_cost > 0 ? normalizedDailyVol * offer.lp_cost : null;
@@ -230,6 +234,7 @@ export async function fetchLpStoreRows(
             quantity: effectiveQuantity,
             bestBuy: buy,
             bestSell: sell,
+            sellMarketWarnings,
             dailyVolume: dailyVol,
             normalizedDailyVolume: normalizedDailyVol,
             dailyLpVolume,
