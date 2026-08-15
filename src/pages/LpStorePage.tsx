@@ -56,6 +56,13 @@ export function LpStorePage() {
     if (selectedCorp) void loadLpStoreData(selectedCorp, regionId, includeBlueprints);
   };
 
+  const handleIncludeBlueprintsChange = (checked: boolean) => {
+    if (loading) return;
+
+    setIncludeBlueprints(checked);
+    if (selectedCorp) void loadLpStoreData(selectedCorp, regionId, checked);
+  };
+
   const filteredRows = rows.filter((row) => includeOtherItems || row.requiredItems.length === 0);
 
   return (
@@ -137,7 +144,8 @@ export function LpStorePage() {
             <input
               type="checkbox"
               checked={includeBlueprints}
-              onChange={(e) => setIncludeBlueprints(e.target.checked)}
+              disabled={loading}
+              onChange={(e) => handleIncludeBlueprintsChange(e.target.checked)}
               className="rounded border-zinc-600 bg-zinc-800"
             />
             Include blueprints
