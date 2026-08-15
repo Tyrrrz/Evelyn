@@ -38,6 +38,12 @@ export interface LpStoreRow {
   immediateLiquidityIsk: number;
   /** Heuristic 0-3 rating of the offer's economics — see {@link computeRating}. */
   rating: number;
+  /**
+   * Continuous, sortable score behind {@link rating}. The integer part always matches
+   * `rating` (so sorting respects star-tier boundaries first), while the fractional part
+   * ranks the offer against the other offers in the same batch — see {@link computeRatingScores}.
+   */
+  ratingScore: number;
 }
 
 const BATCH_SIZE = 10;
@@ -51,6 +57,15 @@ const RATING_2_BUY_ISK_PER_LP = 900;
 const RATING_1_BUY_ISK_PER_LP = 700;
 const VOLUME_LP_THRESHOLD = 500_000;
 const LIQUIDITY_LP_THRESHOLD = 300_000;
+
+/** How much LP can be liquidated right now, or 0 if the offer isn't liquid at all (see `rating`). */
+function effectiveLiquidityLp(row: {
+  lpCost: number;
+  immediateLiquidityLp: number;
+  immediateLiquidityIsk: number;
+}): number {
+  return row.lpCost > 0 && row.immediateLiquidityIsk > 0 ? row.immediateLiquidityLp : 0;
+}
 
 /**
  * Heuristically rates an offer's economics from 0 to 3 stars:
@@ -66,8 +81,7 @@ function computeRating(row: {
   immediateLiquidityIsk: number;
   dailyLpVolume: number | null;
 }): number {
-  const liquidityLp =
-    row.lpCost > 0 && row.immediateLiquidityIsk > 0 ? row.immediateLiquidityLp : 0;
+  const liquidityLp = effectiveLiquidityLp(row);
 
   const hasVolume = row.dailyLpVolume !== null && row.dailyLpVolume > VOLUME_LP_THRESHOLD;
   const hasLiquidity = liquidityLp > LIQUIDITY_LP_THRESHOLD;
@@ -77,6 +91,66 @@ function computeRating(row: {
   if (row.lpToIskBuy > RATING_2_BUY_ISK_PER_LP && (hasVolume || hasLiquidity)) return 2;
   if (row.lpToIskBuy > RATING_1_BUY_ISK_PER_LP && (hasVolume || hasLiquidity)) return 1;
   return 0;
+}
+
+/**
+ * Ranks each value's position among its peers, as a fraction from 0 (worst) to 1 (best).
+ * `null` is treated as the worst possible value. Equal values (including groups of `null`)
+ * share the same (average) rank, so e.g. if every offer has no buy orders, they all rank 0.
+ */
+function relativeRanks(values: (number | null)[]): number[] {
+  const n = values.length;
+  if (n <= 1) return values.map(() => 0.5);
+
+  const indices = values.map((_, i) => i);
+  indices.sort((a, b) => {
+    const av = values[a];
+    const bv = values[b];
+    if (av === bv) return 0;
+    if (av === null) return -1;
+    if (bv === null) return 1;
+    return av - bv;
+  });
+
+  const ranks = new Array<number>(n);
+  let i = 0;
+  while (i < n) {
+    let j = i;
+    while (j + 1 < n && values[indices[j + 1]] === values[indices[i]]) j++;
+    const averageRank = (i + j) / 2 / (n - 1);
+    for (let k = i; k <= j; k++) ranks[indices[k]] = averageRank;
+    i = j + 1;
+  }
+  return ranks;
+}
+
+/**
+ * Computes the continuous {@link LpStoreRow.ratingScore} for each row: the integer part is
+ * always the row's absolute star `rating`, so sorting respects tier boundaries first; the
+ * fractional part ranks the row's buy price, volume and liquidity against the other rows
+ * passed in (i.e. relative to the current corporation's offers), breaking ties within a tier
+ * so that, say, the "best" 3-star offers of a corp with mostly 3-star offers sort above the
+ * rest, while a corp whose offers are all mediocre still spreads them out sensibly.
+ */
+function computeRatingScores(
+  rows: {
+    rating: number;
+    lpToIskBuy: number | null;
+    dailyLpVolume: number | null;
+    lpCost: number;
+    immediateLiquidityLp: number;
+    immediateLiquidityIsk: number;
+  }[],
+): number[] {
+  const buyRanks = relativeRanks(rows.map((r) => r.lpToIskBuy));
+  const volumeRanks = relativeRanks(rows.map((r) => r.dailyLpVolume));
+  const liquidityRanks = relativeRanks(rows.map((r) => effectiveLiquidityLp(r)));
+
+  return rows.map((r, i) => {
+    const relativeScore = (buyRanks[i] + volumeRanks[i] + liquidityRanks[i]) / 3;
+    // Scaled to less than 1 so it never crosses into an adjacent star tier.
+    return r.rating + relativeScore * 0.999;
+  });
 }
 
 function memoizeByTypeId<T>(
@@ -171,7 +245,7 @@ export async function fetchLpStoreRows(
     : new Map<number, { name: string; type_id: number }>();
   const typeInfoMap = new Map([...baseTypeInfoMap, ...extraTypeInfoMap]);
 
-  const rows: LpStoreRow[] = [];
+  const rows: Omit<LpStoreRow, "ratingScore">[] = [];
   let done = 0;
 
   for (let i = 0; i < offers.length; i += BATCH_SIZE) {
@@ -288,7 +362,7 @@ export async function fetchLpStoreRows(
             immediateLiquidityLp: immediateLiquidity.lp,
             immediateLiquidityIsk: immediateLiquidity.isk,
             rating,
-          } satisfies LpStoreRow;
+          } satisfies Omit<LpStoreRow, "ratingScore">;
         } catch (e) {
           console.error("Failed to process LP offer", offer.offer_id, "type", offer.type_id, e);
           return null;
@@ -298,8 +372,9 @@ export async function fetchLpStoreRows(
 
     done += batch.length;
     onProgress?.(done, offers.length);
-    rows.push(...(batchRows.filter(Boolean) as LpStoreRow[]));
+    rows.push(...(batchRows.filter(Boolean) as Omit<LpStoreRow, "ratingScore">[]));
   }
 
-  return rows;
+  const ratingScores = computeRatingScores(rows);
+  return rows.map((row, i) => ({ ...row, ratingScore: ratingScores[i] }));
 }

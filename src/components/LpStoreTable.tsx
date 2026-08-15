@@ -10,7 +10,7 @@ type SortKey = keyof Pick<
   | "lpToIskBuy"
   | "lpToIskSell"
   | "immediateLiquidityLp"
-  | "rating"
+  | "ratingScore"
 >;
 
 type SortDir = "asc" | "desc";
@@ -108,7 +108,7 @@ function IskLpCell({ ratio, bestPrice }: { ratio: number | null; bestPrice: numb
 }
 
 export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
-  const [sortKey, setSortKey] = useState<SortKey>("lpToIskBuy");
+  const [sortKey, setSortKey] = useState<SortKey>("ratingScore");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   const handleSort = (key: SortKey) => {
@@ -136,8 +136,8 @@ export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
                 Item
               </Th>
               <Th
-                col="rating"
-                title="Heuristic 0-3 star rating: 3 = buy price > 1000 ISK/LP, daily volume > 500k LP AND immediate liquidity > 300k LP; 2 = buy price > 900 ISK/LP, daily volume > 500k LP OR immediate liquidity > 300k LP; 1 = buy price > 700 ISK/LP, daily volume > 500k LP OR immediate liquidity > 300k LP; 0 (—) = everything else"
+                col="ratingScore"
+                title="Heuristic 0-3 star rating: 3 = buy price > 1000 ISK/LP, daily volume > 500k LP AND immediate liquidity > 300k LP; 2 = buy price > 900 ISK/LP, daily volume > 500k LP OR immediate liquidity > 300k LP; 1 = buy price > 700 ISK/LP, daily volume > 500k LP OR immediate liquidity > 300k LP; 0 (—) = everything else. Sorting ranks offers within the same star tier by how they compare to this corporation's other offers."
                 {...thProps}
               >
                 Rating
