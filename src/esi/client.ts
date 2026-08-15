@@ -225,11 +225,9 @@ export function avgDailyVolume(history: MarketHistoryEntry[]): number {
 /**
  * Detects whether a market looks volatile or manipulated and is therefore risky to rely on for
  * liquidation, even if the raw sell price looks attractive:
- * - The sell price sits well above the buy price — a wide spread usually means a thin, easily
- *   moved order book rather than a genuinely liquid two-sided market.
- * - The sell price has jumped sharply over the last week, especially alongside a volume spike in
- *   the last few days — a hallmark of a market being pumped (or wash-traded) rather than one that
- *   has settled at a new, sustainable price.
+ * - The average price has jumped sharply over the last few days relative to the prior week — a
+ *   potential hallmark of a market being pumped (or wash-traded) rather than one that has settled
+ *   at a new, sustainable price.
  */
 export function isMarketVolatile(
   history: MarketHistoryEntry[],
