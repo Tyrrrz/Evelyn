@@ -238,7 +238,7 @@ export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
                   <IskLpCell
                     ratio={row.lpToIskSell}
                     bestPrice={row.bestSell}
-                    isVolatile={row.sellMarketWarnings.length > 0}
+                    isVolatile={row.isSellMarketVolatile}
                   />
                   <IskLpCell ratio={row.lpToIskBuy} bestPrice={row.bestBuy} />
                   <td className="px-3 py-2 text-zinc-300 tabular-nums">

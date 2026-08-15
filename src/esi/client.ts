@@ -223,25 +223,20 @@ export function avgDailyVolume(history: MarketHistoryEntry[]): number {
 }
 
 /**
- * Flags markets that look volatile or manipulated and are therefore risky to rely on for
- * liquidation, even if the raw sell price looks attractive. Returns a human-readable reason for
- * each symptom detected (empty if none):
+ * Detects whether a market looks volatile or manipulated and is therefore risky to rely on for
+ * liquidation, even if the raw sell price looks attractive:
  * - The sell price sits well above the buy price — a wide spread usually means a thin, easily
  *   moved order book rather than a genuinely liquid two-sided market.
  * - The sell price has jumped sharply over the last week, especially alongside a volume spike in
  *   the last few days — a hallmark of a market being pumped (or wash-traded) rather than one that
  *   has settled at a new, sustainable price.
  */
-export function detectMarketVolatility(
+export function isMarketVolatile(
   history: MarketHistoryEntry[],
   buy: number | null,
   sell: number | null,
-): string[] {
-  const warnings: string[] = [];
-
-  if (buy !== null && sell !== null && buy > 0 && sell / buy >= 1.5) {
-    warnings.push("sell price is 50%+ above the buy price");
-  }
+): boolean {
+  if (buy !== null && sell !== null && buy > 0 && sell / buy >= 1.5) return true;
 
   const recent = history.slice(-3);
   const prior = history.slice(-10, -3);
@@ -249,16 +244,8 @@ export function detectMarketVolatility(
     const recentAvgPrice = recent.reduce((s, h) => s + h.average, 0) / recent.length;
     const priorAvgPrice = prior.reduce((s, h) => s + h.average, 0) / prior.length;
 
-    if (priorAvgPrice > 0 && recentAvgPrice / priorAvgPrice >= 1.3) {
-      const recentAvgVolume = recent.reduce((s, h) => s + h.volume, 0) / recent.length;
-      const priorAvgVolume = prior.reduce((s, h) => s + h.volume, 0) / prior.length;
-      warnings.push(
-        priorAvgVolume > 0 && recentAvgVolume / priorAvgVolume >= 3
-          ? "price and volume have spiked in the last few days"
-          : "price has spiked over the last week",
-      );
-    }
+    if (priorAvgPrice > 0 && recentAvgPrice / priorAvgPrice >= 1.3) return true;
   }
 
-  return warnings;
+  return false;
 }

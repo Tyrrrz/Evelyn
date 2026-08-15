@@ -67,7 +67,7 @@ export function LpStorePage() {
   const filteredRows = rows.filter(
     (row) =>
       (includeOtherItems || row.requiredItems.length === 0) &&
-      (includeVolatileMarkets || row.sellMarketWarnings.length === 0),
+      (includeVolatileMarkets || !row.isSellMarketVolatile),
   );
 
   return (
