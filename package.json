@@ -8,7 +8,7 @@
     "start": "vite",
     "build": "vite build",
     "serve": "vite preview",
-    "generate-data": "node scripts/generate-npc-corporations.mjs && node scripts/generate-blueprint-data.mjs",
+    "generate-data": "node scripts/generate-npc-corporations.mjs && node scripts/generate-blueprint-data.mjs && node scripts/generate-region-data.mjs",
     "lint": "eslint . --fix",
     "lint:check": "eslint .",
     "format": "prettier . --write",

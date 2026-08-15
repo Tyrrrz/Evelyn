@@ -88,12 +88,13 @@ function computeImmediateLiquidity(
 
 export async function fetchLpStoreRows(
   corporationId: number,
+  regionId: number,
   includeBlueprints: boolean,
   onProgress?: (done: number, total: number) => void,
 ): Promise<LpStoreRow[]> {
   const allOffers = await getLpOffers(corporationId);
-  const getCachedMarketOrders = memoizeByTypeId(getMarketOrders);
-  const getCachedMarketHistory = memoizeByTypeId(getMarketHistory);
+  const getCachedMarketOrders = memoizeByTypeId((typeId) => getMarketOrders(typeId, regionId));
+  const getCachedMarketHistory = memoizeByTypeId((typeId) => getMarketHistory(typeId, regionId));
 
   // Resolve all directly-referenced type names first, so blueprint offers can be identified
   const baseTypeIds = new Set<number>();
