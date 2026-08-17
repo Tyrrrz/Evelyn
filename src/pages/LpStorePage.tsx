@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { LpStoreTable } from "../components/LpStoreTable.tsx";
 import { getCorporations } from "../esi/client.ts";
 import type { LpStoreRow } from "../esi/lpStore.ts";
@@ -10,20 +11,72 @@ interface Corporation {
   name: string;
 }
 
+const CORP_PARAM = "corp";
+const REGION_PARAM = "region";
+const OTHER_ITEMS_PARAM = "includeOtherItems";
+const BLUEPRINTS_PARAM = "includeBlueprints";
+const VOLATILE_MARKETS_PARAM = "includeVolatileMarkets";
+
+function parseBoolParam(value: string | null, defaultValue: boolean): boolean {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return defaultValue;
+}
+
 export function LpStorePage() {
   const corporations = useMemo(() => getCorporations(), [getCorporations]);
   const regions = useMemo(() => getRegions(), [getRegions]);
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [selectedCorp, setSelectedCorp] = useState<Corporation | null>(null);
-  const [regionId, setRegionId] = useState(DEFAULT_REGION_ID);
+  const [selectedCorp, setSelectedCorp] = useState<Corporation | null>(() => {
+    const corpId = searchParams.get(CORP_PARAM);
+    return corporations.find((c) => String(c.corporation_id) === corpId) ?? null;
+  });
+  const [regionId, setRegionId] = useState(() => {
+    const paramRegionId = Number(searchParams.get(REGION_PARAM));
+    return regions.some((r) => r.regionId === paramRegionId) ? paramRegionId : DEFAULT_REGION_ID;
+  });
   const [rows, setRows] = useState<LpStoreRow[]>([]);
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [includeOtherItems, setIncludeOtherItems] = useState(true);
-  const [includeBlueprints, setIncludeBlueprints] = useState(false);
-  const [includeVolatileMarkets, setIncludeVolatileMarkets] = useState(false);
+  const [includeOtherItems, setIncludeOtherItems] = useState(() =>
+    parseBoolParam(searchParams.get(OTHER_ITEMS_PARAM), true),
+  );
+  const [includeBlueprints, setIncludeBlueprints] = useState(() =>
+    parseBoolParam(searchParams.get(BLUEPRINTS_PARAM), false),
+  );
+  const [includeVolatileMarkets, setIncludeVolatileMarkets] = useState(() =>
+    parseBoolParam(searchParams.get(VOLATILE_MARKETS_PARAM), false),
+  );
+
+  // Keep the query params in sync with the current selection and filters.
+  useEffect(() => {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        if (selectedCorp) {
+          params.set(CORP_PARAM, String(selectedCorp.corporation_id));
+        } else {
+          params.delete(CORP_PARAM);
+        }
+        params.set(REGION_PARAM, String(regionId));
+        params.set(OTHER_ITEMS_PARAM, String(includeOtherItems));
+        params.set(BLUEPRINTS_PARAM, String(includeBlueprints));
+        params.set(VOLATILE_MARKETS_PARAM, String(includeVolatileMarkets));
+        return params;
+      },
+      { replace: true },
+    );
+  }, [
+    selectedCorp,
+    regionId,
+    includeOtherItems,
+    includeBlueprints,
+    includeVolatileMarkets,
+    setSearchParams,
+  ]);
 
   const handleCorpChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const corp = corporations.find((c) => String(c.corporation_id) === e.target.value) ?? null;
@@ -56,6 +109,20 @@ export function LpStorePage() {
   const handleSearch = () => {
     if (selectedCorp) void loadLpStoreData(selectedCorp, regionId, includeBlueprints);
   };
+
+  // Immediately search when the page is loaded with an NPC corp already selected via query params.
+  const didAutoSearch = useRef(false);
+  useEffect(() => {
+    if (didAutoSearch.current) return;
+    didAutoSearch.current = true;
+
+    if (!selectedCorp) return;
+    const timeoutId = setTimeout(() => {
+      void loadLpStoreData(selectedCorp, regionId, includeBlueprints);
+    }, 0);
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleIncludeBlueprintsChange = (checked: boolean) => {
     if (loading) return;
