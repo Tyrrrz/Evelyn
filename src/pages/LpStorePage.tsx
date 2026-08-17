@@ -13,9 +13,9 @@ interface Corporation {
 
 const CORP_PARAM = "corp";
 const REGION_PARAM = "region";
-const OTHER_ITEMS_PARAM = "otherItems";
-const BLUEPRINTS_PARAM = "blueprints";
-const VOLATILE_MARKETS_PARAM = "volatileMarkets";
+const OTHER_ITEMS_PARAM = "includeOtherItems";
+const BLUEPRINTS_PARAM = "includeBlueprints";
+const VOLATILE_MARKETS_PARAM = "includeVolatileMarkets";
 
 function parseBoolParam(value: string | null, defaultValue: boolean): boolean {
   if (value === "true") return true;
