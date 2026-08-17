@@ -20,7 +20,7 @@ export function redirectToRootWithEncodedPath() {
 
 export function restoreRedirectedPath() {
   const location = window.location;
-  if (location.search[1] !== "/") {
+  if (!location.search.startsWith("?/")) {
     return;
   }
 
