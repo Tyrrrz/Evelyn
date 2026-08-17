@@ -6,16 +6,17 @@
 
 export function redirectToRootWithEncodedPath() {
   const base = import.meta.env.BASE_URL;
-  const segmentsToKeep = base.split("/").filter(Boolean).length;
+  const baseRoot = base.endsWith("/") ? base.slice(0, -1) : base;
 
   const location = window.location;
-  const segments = location.pathname.split("/").slice(1);
-  const root = "/" + segments.slice(0, segmentsToKeep).join("/");
-  const rest = segments.slice(segmentsToKeep).join("/");
+  const pathAfterBase = location.pathname.startsWith(base)
+    ? location.pathname.slice(base.length)
+    : location.pathname.replace(/^\/+/, "");
+  const rest = pathAfterBase.replace(/^\/+/, "");
 
   const search = location.search ? "&" + location.search.slice(1).replace(/&/g, "~and~") : "";
 
-  location.replace(root + "/?/" + rest.replace(/&/g, "~and~") + search + location.hash);
+  location.replace(baseRoot + "/?/" + rest.replace(/&/g, "~and~") + search + location.hash);
 }
 
 export function restoreRedirectedPath() {
