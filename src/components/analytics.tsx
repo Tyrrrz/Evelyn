@@ -2,7 +2,7 @@ import { FC, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { resolvePath } from "../utils/assets";
 
-const Analytics: FC = () => {
+export const Analytics: FC = () => {
   const location = useLocation();
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
 
@@ -35,5 +35,3 @@ const Analytics: FC = () => {
 
   return null;
 };
-
-export default Analytics;
