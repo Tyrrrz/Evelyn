@@ -2,7 +2,15 @@ import { FC, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { resolvePath } from "../utils/assets";
 
-export const Analytics: FC = () => {
+declare global {
+  interface Window {
+    goatcounter?: {
+      count?: (options?: { path?: string }) => void;
+    };
+  }
+}
+
+const Analytics: FC = () => {
   const location = useLocation();
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
 
@@ -35,3 +43,5 @@ export const Analytics: FC = () => {
 
   return null;
 };
+
+export default Analytics;
