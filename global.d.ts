@@ -5,9 +5,3 @@ interface ImportMetaEnv {
   readonly BUILD_ID: string;
   readonly GOATCOUNTER_URL: string;
 }
-
-interface Window {
-  goatcounter?: {
-    count?: (options?: { path?: string }) => void;
-  };
-}
