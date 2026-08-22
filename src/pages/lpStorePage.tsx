@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { LpStoreTable } from "../components/LpStoreTable.tsx";
+import LpStoreTable from "../components/lpStoreTable.tsx";
 import { getCorporations } from "../esi/client.ts";
 import type { LpStoreRow } from "../esi/lpStore.ts";
 import { fetchLpStoreRows } from "../esi/lpStore.ts";
@@ -23,7 +23,7 @@ function parseBoolParam(value: string | null, defaultValue: boolean): boolean {
   return defaultValue;
 }
 
-export function LpStorePage() {
+export default function LpStorePage() {
   const corporations = useMemo(() => getCorporations(), [getCorporations]);
   const regions = useMemo(() => getRegions(), [getRegions]);
   const [searchParams, setSearchParams] = useSearchParams();

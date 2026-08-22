@@ -111,7 +111,7 @@ function IskLpCell({
   );
 }
 
-export function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
+export default function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
   const [sortKey, setSortKey] = useState<SortKey>("lpToIskBuy");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
