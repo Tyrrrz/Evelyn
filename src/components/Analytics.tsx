@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { FC, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { resolvePath } from "../utils/assets";
 
@@ -10,7 +10,7 @@ declare global {
   }
 }
 
-export function Analytics() {
+const Analytics: FC = () => {
   const location = useLocation();
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
 
@@ -42,4 +42,6 @@ export function Analytics() {
   }, [isScriptLoaded, location.pathname]);
 
   return null;
-}
+};
+
+export default Analytics;
