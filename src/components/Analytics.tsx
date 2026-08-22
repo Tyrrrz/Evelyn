@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { resolvePath } from "../utils/assets";
 
 declare global {
   interface Window {
@@ -37,7 +38,7 @@ export function Analytics() {
       return;
     }
 
-    window.goatcounter?.count?.({ path: location.pathname });
+    window.goatcounter?.count?.({ path: resolvePath(location.pathname) });
   }, [isScriptLoaded, location.pathname]);
 
   return null;
