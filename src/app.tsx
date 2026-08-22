@@ -1,9 +1,9 @@
 import { Route, Routes } from "react-router-dom";
 import Analytics from "./components/analytics.tsx";
-import { HomePage } from "./pages/HomePage.tsx";
-import { LpStorePage } from "./pages/LpStorePage.tsx";
+import HomePage from "./pages/homePage.tsx";
+import LpStorePage from "./pages/lpStorePage.tsx";
 
-export function App() {
+function App() {
   return (
     <>
       <Analytics />
@@ -14,3 +14,5 @@ export function App() {
     </>
   );
 }
+
+export default App;
