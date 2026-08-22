@@ -1,5 +1,5 @@
 import { Route, Routes } from "react-router-dom";
-import { Analytics } from "./components/analytics.tsx";
+import Analytics from "./components/analytics.tsx";
 import { HomePage } from "./pages/HomePage.tsx";
 import { LpStorePage } from "./pages/LpStorePage.tsx";
 
