@@ -86,10 +86,12 @@ function IskLpCell({
   ratio,
   bestPrice,
   isVolatile,
+  isUnpriced,
 }: {
   ratio: number | null;
   bestPrice: number | null;
   isVolatile?: boolean;
+  isUnpriced?: boolean;
 }) {
   return (
     <td className="px-3 py-2 tabular-nums">
@@ -101,6 +103,14 @@ function IskLpCell({
           <span
             className="text-yellow-500"
             title="This market looks volatile or manipulated — it might be hard to liquidate LP at this price."
+          >
+            ⚠
+          </span>
+        )}
+        {isUnpriced && (
+          <span
+            className="text-yellow-500"
+            title="At least one required item or blueprint material has no sell orders in this region — the true cost is higher, so the actual ISK/LP ratio is lower than shown."
           >
             ⚠
           </span>
@@ -261,8 +271,13 @@ export default function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
                     ratio={row.lpToIskSell}
                     bestPrice={row.bestSell}
                     isVolatile={row.isMarketVolatile}
+                    isUnpriced={requiredItemsPriceUnknown || blueprintMaterialsPriceUnknown}
                   />
-                  <IskLpCell ratio={row.lpToIskBuy} bestPrice={row.bestBuy} />
+                  <IskLpCell
+                    ratio={row.lpToIskBuy}
+                    bestPrice={row.bestBuy}
+                    isUnpriced={requiredItemsPriceUnknown || blueprintMaterialsPriceUnknown}
+                  />
                   <td className="px-3 py-2 text-zinc-300 tabular-nums">
                     <div
                       className="font-semibold"
