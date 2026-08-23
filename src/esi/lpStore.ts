@@ -37,6 +37,10 @@ export interface LpStoreRow {
   requiredItemsIskCost: number;
   /** ISK cost (at sell price) of the blueprint's materials, if any. */
   blueprintMaterialsIskCost: number;
+  /** Whether at least one required item has no sell orders, so `requiredItemsIskCost` understates its true cost. */
+  requiredItemsPriceUnknown: boolean;
+  /** Whether at least one blueprint material has no sell orders, so `blueprintMaterialsIskCost` understates its true cost. */
+  blueprintMaterialsPriceUnknown: boolean;
   immediateLiquidityLp: number;
   immediateLiquidityIsk: number;
 }
@@ -192,8 +196,15 @@ export async function fetchLpStoreRows(
               const sellPrice = sellPriceByTypeId.get(item.type_id);
               return sellPrice != null ? sum + sellPrice * item.quantity : sum;
             }, 0);
+          // Items with no sell orders in the region contribute nothing to the sum above, which
+          // would otherwise make a genuinely-required item look free. Flag this so the UI can
+          // still surface that there's an (unknown) cost instead of showing nothing at all.
+          const hasUnpricedItem = (items: { type_id: number }[]) =>
+            items.some((item) => sellPriceByTypeId.get(item.type_id) == null);
           const requiredItemsIskCost = iskCostOf(offer.required_items);
           const blueprintMaterialsIskCost = iskCostOf(blueprintMaterials);
+          const requiredItemsPriceUnknown = hasUnpricedItem(offer.required_items);
+          const blueprintMaterialsPriceUnknown = hasUnpricedItem(blueprintMaterials);
           const requiredIskCost = offer.isk_cost + requiredItemsIskCost + blueprintMaterialsIskCost;
 
           const buyRevenue = buy !== null ? buy * effectiveQuantity : null;
@@ -243,6 +254,8 @@ export async function fetchLpStoreRows(
             totalRequiredIskCost: requiredIskCost,
             requiredItemsIskCost,
             blueprintMaterialsIskCost,
+            requiredItemsPriceUnknown,
+            blueprintMaterialsPriceUnknown,
             immediateLiquidityLp: immediateLiquidity.lp,
             immediateLiquidityIsk: immediateLiquidity.isk,
           } satisfies LpStoreRow;

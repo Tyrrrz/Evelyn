@@ -224,14 +224,30 @@ export default function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
                     {row.iskCost > 0 && (
                       <div className="text-zinc-500">+ {fmt(row.iskCost)} ISK</div>
                     )}
-                    {row.requiredItemsIskCost > 0 && (
-                      <div className="text-zinc-500">
+                    {(row.requiredItemsIskCost > 0 || row.requiredItemsPriceUnknown) && (
+                      <div
+                        className="text-zinc-500"
+                        title={
+                          row.requiredItemsPriceUnknown
+                            ? "At least one required item has no sell orders in this region, so the true cost is higher than shown"
+                            : undefined
+                        }
+                      >
                         + {fmt(row.requiredItemsIskCost)} ISK in items
+                        {row.requiredItemsPriceUnknown && "+"}
                       </div>
                     )}
-                    {row.blueprintMaterialsIskCost > 0 && (
-                      <div className="text-zinc-500">
+                    {(row.blueprintMaterialsIskCost > 0 || row.blueprintMaterialsPriceUnknown) && (
+                      <div
+                        className="text-zinc-500"
+                        title={
+                          row.blueprintMaterialsPriceUnknown
+                            ? "At least one blueprint material has no sell orders in this region, so the true cost is higher than shown"
+                            : undefined
+                        }
+                      >
                         + {fmt(row.blueprintMaterialsIskCost)} ISK in materials
+                        {row.blueprintMaterialsPriceUnknown && "+"}
                       </div>
                     )}
                   </td>
