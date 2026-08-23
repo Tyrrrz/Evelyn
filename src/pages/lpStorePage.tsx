@@ -16,6 +16,7 @@ const REGION_PARAM = "region";
 const OTHER_ITEMS_PARAM = "includeOtherItems";
 const BLUEPRINTS_PARAM = "includeBlueprints";
 const VOLATILE_MARKETS_PARAM = "includeVolatileMarkets";
+const UNPRICED_PARAM = "includeUnpricedItems";
 
 function parseBoolParam(value: string | null, defaultValue: boolean): boolean {
   if (value === "true") return true;
@@ -50,6 +51,9 @@ export default function LpStorePage() {
   const [includeVolatileMarkets, setIncludeVolatileMarkets] = useState(() =>
     parseBoolParam(searchParams.get(VOLATILE_MARKETS_PARAM), false),
   );
+  const [includeUnpricedItems, setIncludeUnpricedItems] = useState(() =>
+    parseBoolParam(searchParams.get(UNPRICED_PARAM), false),
+  );
 
   // Keep the query params in sync with the current selection and filters.
   useEffect(() => {
@@ -65,6 +69,7 @@ export default function LpStorePage() {
         params.set(OTHER_ITEMS_PARAM, String(includeOtherItems));
         params.set(BLUEPRINTS_PARAM, String(includeBlueprints));
         params.set(VOLATILE_MARKETS_PARAM, String(includeVolatileMarkets));
+        params.set(UNPRICED_PARAM, String(includeUnpricedItems));
         return params;
       },
       { replace: true },
@@ -75,6 +80,7 @@ export default function LpStorePage() {
     includeOtherItems,
     includeBlueprints,
     includeVolatileMarkets,
+    includeUnpricedItems,
     setSearchParams,
   ]);
 
@@ -134,7 +140,10 @@ export default function LpStorePage() {
   const filteredRows = rows.filter(
     (row) =>
       (includeOtherItems || row.requiredItems.length === 0) &&
-      (includeVolatileMarkets || !row.isMarketVolatile),
+      (includeVolatileMarkets || !row.isMarketVolatile) &&
+      (includeUnpricedItems ||
+        (row.requiredItems.every((i) => i.sellPrice !== null) &&
+          row.blueprintMaterials.every((i) => i.sellPrice !== null))),
   );
 
   return (
@@ -234,6 +243,16 @@ export default function LpStorePage() {
               className="rounded border-zinc-600 bg-zinc-800"
             />
             Include volatile markets
+          </label>
+          <label className="flex items-center gap-2 text-zinc-300">
+            <input
+              type="checkbox"
+              checked={includeUnpricedItems}
+              disabled={loading}
+              onChange={(e) => setIncludeUnpricedItems(e.target.checked)}
+              className="rounded border-zinc-600 bg-zinc-800"
+            />
+            Include offers with unpriced items
           </label>
         </div>
 
