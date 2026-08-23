@@ -194,9 +194,15 @@ export default function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
               const requiredItemsPriceUnknown = row.requiredItems.some(
                 (ri) => ri.sellPrice == null,
               );
+              const requiredItemsAllUnpriced =
+                row.requiredItems.length > 0 &&
+                row.requiredItems.every((ri) => ri.sellPrice == null);
               const blueprintMaterialsPriceUnknown = row.blueprintMaterials.some(
                 (ri) => ri.sellPrice == null,
               );
+              const blueprintMaterialsAllUnpriced =
+                row.blueprintMaterials.length > 0 &&
+                row.blueprintMaterials.every((ri) => ri.sellPrice == null);
               const itemLabel = `${row.quantity > 1 ? `${fmt(row.quantity)} × ` : ""}${row.typeName}${row.blueprintMaterials.length > 0 ? " (Blueprint)" : ""}`;
               return (
                 <tr key={row.offerId} className={i % 2 === 0 ? "bg-zinc-950" : "bg-zinc-900"}>
@@ -249,8 +255,9 @@ export default function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
                             : undefined
                         }
                       >
-                        + {fmt(row.requiredItemsIskCost)} ISK in items
-                        {requiredItemsPriceUnknown && "+"}
+                        {requiredItemsAllUnpriced
+                          ? "+ ??? ISK in items"
+                          : `+ ${fmt(row.requiredItemsIskCost)}${requiredItemsPriceUnknown ? "?" : ""} ISK in items`}
                       </div>
                     )}
                     {(row.blueprintMaterialsIskCost > 0 || blueprintMaterialsPriceUnknown) && (
@@ -262,8 +269,9 @@ export default function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
                             : undefined
                         }
                       >
-                        + {fmt(row.blueprintMaterialsIskCost)} ISK in materials
-                        {blueprintMaterialsPriceUnknown && "+"}
+                        {blueprintMaterialsAllUnpriced
+                          ? "+ ??? ISK in materials"
+                          : `+ ${fmt(row.blueprintMaterialsIskCost)}${blueprintMaterialsPriceUnknown ? "?" : ""} ISK in materials`}
                       </div>
                     )}
                   </td>
