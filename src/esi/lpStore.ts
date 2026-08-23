@@ -13,7 +13,7 @@ import {
 } from "./client.ts";
 
 /** An item required by an offer (directly, or as a blueprint material), priced at sell price. */
-export interface RequiredItem {
+export interface Ingredient {
   typeId: number;
   typeName: string;
   quantity: number;
@@ -28,9 +28,9 @@ export interface LpStoreRow {
   lpCost: number;
   iskCost: number;
   /** Items the corporation requires directly, in addition to LP (and ISK, if any). */
-  requiredItems: RequiredItem[];
+  requiredItems: Ingredient[];
   /** Materials needed to manufacture `typeName`, if this offer's reward is a blueprint copy. */
-  blueprintMaterials: RequiredItem[];
+  blueprintMaterials: Ingredient[];
   quantity: number;
   bestBuy: number | null;
   bestSell: number | null;
@@ -199,16 +199,14 @@ export async function fetchLpStoreRows(
           // Items with no sell orders in the region are given a `null` sell price rather than
           // being dropped, so the UI can tell a genuinely-required item apart from a free one and
           // surface that there's an (unknown) cost instead of showing nothing at all.
-          const toRequiredItems = (
-            items: { type_id: number; quantity: number }[],
-          ): RequiredItem[] =>
+          const toRequiredItems = (items: { type_id: number; quantity: number }[]): Ingredient[] =>
             items.map((item) => ({
               typeId: item.type_id,
               typeName: typeInfoMap.get(item.type_id)?.name ?? `Type ${item.type_id}`,
               quantity: item.quantity,
               sellPrice: sellPriceByTypeId.get(item.type_id) ?? null,
             }));
-          const iskCostOf = (items: RequiredItem[]) =>
+          const iskCostOf = (items: Ingredient[]) =>
             items.reduce((sum, item) => sum + (item.sellPrice ?? 0) * item.quantity, 0);
           const requiredItems = toRequiredItems(offer.required_items);
           const blueprintMaterialItems = toRequiredItems(blueprintMaterials);
