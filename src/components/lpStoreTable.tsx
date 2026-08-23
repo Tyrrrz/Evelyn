@@ -86,10 +86,12 @@ function IskLpCell({
   ratio,
   bestPrice,
   isVolatile,
+  isUnpriced,
 }: {
   ratio: number | null;
   bestPrice: number | null;
   isVolatile?: boolean;
+  isUnpriced?: boolean;
 }) {
   return (
     <td className="px-3 py-2 tabular-nums">
@@ -101,6 +103,14 @@ function IskLpCell({
           <span
             className="text-yellow-500"
             title="This market looks volatile or manipulated — it might be hard to liquidate LP at this price."
+          >
+            ⚠
+          </span>
+        )}
+        {isUnpriced && (
+          <span
+            className="text-yellow-500"
+            title="At least one required item or blueprint material has no sell orders in this region — the true cost is higher, so the actual ISK/LP ratio is lower than shown."
           >
             ⚠
           </span>
@@ -181,6 +191,12 @@ export default function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
               const showLiquidity = row.lpCost > 0 && row.immediateLiquidityIsk > 0;
               const hasItemLists =
                 row.requiredItems.length > 0 || row.blueprintMaterials.length > 0;
+              const requiredItemsPriceUnknown = row.requiredItems.some(
+                (ri) => ri.sellPrice == null,
+              );
+              const blueprintMaterialsPriceUnknown = row.blueprintMaterials.some(
+                (ri) => ri.sellPrice == null,
+              );
               const itemLabel = `${row.quantity > 1 ? `${fmt(row.quantity)} × ` : ""}${row.typeName}${row.blueprintMaterials.length > 0 ? " (Blueprint)" : ""}`;
               return (
                 <tr key={row.offerId} className={i % 2 === 0 ? "bg-zinc-950" : "bg-zinc-900"}>
@@ -224,14 +240,30 @@ export default function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
                     {row.iskCost > 0 && (
                       <div className="text-zinc-500">+ {fmt(row.iskCost)} ISK</div>
                     )}
-                    {row.requiredItemsIskCost > 0 && (
-                      <div className="text-zinc-500">
+                    {(row.requiredItemsIskCost > 0 || requiredItemsPriceUnknown) && (
+                      <div
+                        className="text-zinc-500"
+                        title={
+                          requiredItemsPriceUnknown
+                            ? "At least one required item has no sell orders in this region, so the true cost is higher than shown"
+                            : undefined
+                        }
+                      >
                         + {fmt(row.requiredItemsIskCost)} ISK in items
+                        {requiredItemsPriceUnknown && "+"}
                       </div>
                     )}
-                    {row.blueprintMaterialsIskCost > 0 && (
-                      <div className="text-zinc-500">
+                    {(row.blueprintMaterialsIskCost > 0 || blueprintMaterialsPriceUnknown) && (
+                      <div
+                        className="text-zinc-500"
+                        title={
+                          blueprintMaterialsPriceUnknown
+                            ? "At least one blueprint material has no sell orders in this region, so the true cost is higher than shown"
+                            : undefined
+                        }
+                      >
                         + {fmt(row.blueprintMaterialsIskCost)} ISK in materials
+                        {blueprintMaterialsPriceUnknown && "+"}
                       </div>
                     )}
                   </td>
@@ -239,8 +271,13 @@ export default function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
                     ratio={row.lpToIskSell}
                     bestPrice={row.bestSell}
                     isVolatile={row.isMarketVolatile}
+                    isUnpriced={requiredItemsPriceUnknown || blueprintMaterialsPriceUnknown}
                   />
-                  <IskLpCell ratio={row.lpToIskBuy} bestPrice={row.bestBuy} />
+                  <IskLpCell
+                    ratio={row.lpToIskBuy}
+                    bestPrice={row.bestBuy}
+                    isUnpriced={requiredItemsPriceUnknown || blueprintMaterialsPriceUnknown}
+                  />
                   <td className="px-3 py-2 text-zinc-300 tabular-nums">
                     <div
                       className="font-semibold"
