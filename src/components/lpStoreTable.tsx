@@ -181,6 +181,12 @@ export default function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
               const showLiquidity = row.lpCost > 0 && row.immediateLiquidityIsk > 0;
               const hasItemLists =
                 row.requiredItems.length > 0 || row.blueprintMaterials.length > 0;
+              const requiredItemsPriceUnknown = row.requiredItems.some(
+                (ri) => ri.sellPrice == null,
+              );
+              const blueprintMaterialsPriceUnknown = row.blueprintMaterials.some(
+                (ri) => ri.sellPrice == null,
+              );
               const itemLabel = `${row.quantity > 1 ? `${fmt(row.quantity)} × ` : ""}${row.typeName}${row.blueprintMaterials.length > 0 ? " (Blueprint)" : ""}`;
               return (
                 <tr key={row.offerId} className={i % 2 === 0 ? "bg-zinc-950" : "bg-zinc-900"}>
@@ -224,30 +230,30 @@ export default function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
                     {row.iskCost > 0 && (
                       <div className="text-zinc-500">+ {fmt(row.iskCost)} ISK</div>
                     )}
-                    {(row.requiredItemsIskCost > 0 || row.requiredItemsPriceUnknown) && (
+                    {(row.requiredItemsIskCost > 0 || requiredItemsPriceUnknown) && (
                       <div
                         className="text-zinc-500"
                         title={
-                          row.requiredItemsPriceUnknown
+                          requiredItemsPriceUnknown
                             ? "At least one required item has no sell orders in this region, so the true cost is higher than shown"
                             : undefined
                         }
                       >
                         + {fmt(row.requiredItemsIskCost)} ISK in items
-                        {row.requiredItemsPriceUnknown && "+"}
+                        {requiredItemsPriceUnknown && "+"}
                       </div>
                     )}
-                    {(row.blueprintMaterialsIskCost > 0 || row.blueprintMaterialsPriceUnknown) && (
+                    {(row.blueprintMaterialsIskCost > 0 || blueprintMaterialsPriceUnknown) && (
                       <div
                         className="text-zinc-500"
                         title={
-                          row.blueprintMaterialsPriceUnknown
+                          blueprintMaterialsPriceUnknown
                             ? "At least one blueprint material has no sell orders in this region, so the true cost is higher than shown"
                             : undefined
                         }
                       >
                         + {fmt(row.blueprintMaterialsIskCost)} ISK in materials
-                        {row.blueprintMaterialsPriceUnknown && "+"}
+                        {blueprintMaterialsPriceUnknown && "+"}
                       </div>
                     )}
                   </td>

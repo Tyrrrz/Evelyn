@@ -12,6 +12,15 @@ import {
   isMarketVolatile,
 } from "./client.ts";
 
+/** An item required by an offer (directly, or as a blueprint material), priced at sell price. */
+export interface RequiredItem {
+  typeId: number;
+  typeName: string;
+  quantity: number;
+  /** Best sell price for this item, or `null` if the region has no sell orders for it. */
+  sellPrice: number | null;
+}
+
 export interface LpStoreRow {
   offerId: number;
   typeName: string;
@@ -19,9 +28,9 @@ export interface LpStoreRow {
   lpCost: number;
   iskCost: number;
   /** Items the corporation requires directly, in addition to LP (and ISK, if any). */
-  requiredItems: { typeId: number; typeName: string; quantity: number }[];
+  requiredItems: RequiredItem[];
   /** Materials needed to manufacture `typeName`, if this offer's reward is a blueprint copy. */
-  blueprintMaterials: { typeId: number; typeName: string; quantity: number }[];
+  blueprintMaterials: RequiredItem[];
   quantity: number;
   bestBuy: number | null;
   bestSell: number | null;
@@ -37,10 +46,6 @@ export interface LpStoreRow {
   requiredItemsIskCost: number;
   /** ISK cost (at sell price) of the blueprint's materials, if any. */
   blueprintMaterialsIskCost: number;
-  /** Whether at least one required item has no sell orders, so `requiredItemsIskCost` understates its true cost. */
-  requiredItemsPriceUnknown: boolean;
-  /** Whether at least one blueprint material has no sell orders, so `blueprintMaterialsIskCost` understates its true cost. */
-  blueprintMaterialsPriceUnknown: boolean;
   immediateLiquidityLp: number;
   immediateLiquidityIsk: number;
 }
@@ -191,20 +196,24 @@ export async function fetchLpStoreRows(
             }),
           );
           const sellPriceByTypeId = new Map(reqItemMarkets.map((ri) => [ri.type_id, ri.sellPrice]));
-          const iskCostOf = (items: { type_id: number; quantity: number }[]) =>
-            items.reduce((sum, item) => {
-              const sellPrice = sellPriceByTypeId.get(item.type_id);
-              return sellPrice != null ? sum + sellPrice * item.quantity : sum;
-            }, 0);
-          // Items with no sell orders in the region contribute nothing to the sum above, which
-          // would otherwise make a genuinely-required item look free. Flag this so the UI can
-          // still surface that there's an (unknown) cost instead of showing nothing at all.
-          const hasUnpricedItem = (items: { type_id: number }[]) =>
-            items.some((item) => sellPriceByTypeId.get(item.type_id) == null);
-          const requiredItemsIskCost = iskCostOf(offer.required_items);
-          const blueprintMaterialsIskCost = iskCostOf(blueprintMaterials);
-          const requiredItemsPriceUnknown = hasUnpricedItem(offer.required_items);
-          const blueprintMaterialsPriceUnknown = hasUnpricedItem(blueprintMaterials);
+          // Items with no sell orders in the region are given a `null` sell price rather than
+          // being dropped, so the UI can tell a genuinely-required item apart from a free one and
+          // surface that there's an (unknown) cost instead of showing nothing at all.
+          const toRequiredItems = (
+            items: { type_id: number; quantity: number }[],
+          ): RequiredItem[] =>
+            items.map((item) => ({
+              typeId: item.type_id,
+              typeName: typeInfoMap.get(item.type_id)?.name ?? `Type ${item.type_id}`,
+              quantity: item.quantity,
+              sellPrice: sellPriceByTypeId.get(item.type_id) ?? null,
+            }));
+          const iskCostOf = (items: RequiredItem[]) =>
+            items.reduce((sum, item) => sum + (item.sellPrice ?? 0) * item.quantity, 0);
+          const requiredItems = toRequiredItems(offer.required_items);
+          const blueprintMaterialItems = toRequiredItems(blueprintMaterials);
+          const requiredItemsIskCost = iskCostOf(requiredItems);
+          const blueprintMaterialsIskCost = iskCostOf(blueprintMaterialItems);
           const requiredIskCost = offer.isk_cost + requiredItemsIskCost + blueprintMaterialsIskCost;
 
           const buyRevenue = buy !== null ? buy * effectiveQuantity : null;
@@ -232,16 +241,8 @@ export async function fetchLpStoreRows(
             typeId: effectiveTypeId,
             lpCost: offer.lp_cost,
             iskCost: offer.isk_cost,
-            requiredItems: offer.required_items.map((ri) => ({
-              typeId: ri.type_id,
-              typeName: typeInfoMap.get(ri.type_id)?.name ?? `Type ${ri.type_id}`,
-              quantity: ri.quantity,
-            })),
-            blueprintMaterials: blueprintMaterials.map((ri) => ({
-              typeId: ri.type_id,
-              typeName: typeInfoMap.get(ri.type_id)?.name ?? `Type ${ri.type_id}`,
-              quantity: ri.quantity,
-            })),
+            requiredItems,
+            blueprintMaterials: blueprintMaterialItems,
             quantity: effectiveQuantity,
             bestBuy: buy,
             bestSell: sell,
@@ -254,8 +255,6 @@ export async function fetchLpStoreRows(
             totalRequiredIskCost: requiredIskCost,
             requiredItemsIskCost,
             blueprintMaterialsIskCost,
-            requiredItemsPriceUnknown,
-            blueprintMaterialsPriceUnknown,
             immediateLiquidityLp: immediateLiquidity.lp,
             immediateLiquidityIsk: immediateLiquidity.isk,
           } satisfies LpStoreRow;
