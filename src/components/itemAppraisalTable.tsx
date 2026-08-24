@@ -78,6 +78,32 @@ function columnRange(rows: AppraisalRow[], key: SortKey): { min: number; max: nu
   return { min: Math.min(...values), max: Math.max(...values) };
 }
 
+function formatIsk(value: number | null): string {
+  return value === null ? "??? ISK" : `${fmt(value)} ISK`;
+}
+
+function summarizeTotals(
+  rows: AppraisalRow[],
+  key: "buyTotal" | "sellTotal",
+): { value: number; hasUnknown: boolean; allUnknown: boolean } {
+  let value = 0;
+  let hasUnknown = false;
+  let hasKnown = false;
+
+  for (const row of rows) {
+    const total = row[key];
+    if (total === null) {
+      hasUnknown = true;
+      continue;
+    }
+
+    value += total;
+    hasKnown = true;
+  }
+
+  return { value, hasUnknown, allUnknown: hasUnknown && !hasKnown };
+}
+
 /** Merged cell showing the total value (colored) and, if quantity isn't 1, the per-item price below. */
 function ValueCell({
   total,
@@ -93,9 +119,9 @@ function ValueCell({
   return (
     <td className="px-3 py-2 tabular-nums">
       <div className="font-semibold" style={{ color: ratioColor(total, range.min, range.max) }}>
-        {fmt(total)} ISK
+        {formatIsk(total)}
       </div>
-      {quantity !== 1 && <div className="text-xs text-zinc-500">{fmt(price)} ISK per item</div>}
+      {quantity !== 1 && <div className="text-xs text-zinc-500">{formatIsk(price)} per item</div>}
     </td>
   );
 }
@@ -116,8 +142,8 @@ export default function ItemAppraisalTable({ rows }: { rows: AppraisalRow[] }) {
   const thProps = { sortKey, sortDir, onSort: handleSort };
 
   const totalQuantity = rows.reduce((s, r) => s + r.quantity, 0);
-  const totalBuy = rows.reduce((s, r) => s + (r.buyTotal ?? 0), 0);
-  const totalSell = rows.reduce((s, r) => s + (r.sellTotal ?? 0), 0);
+  const totalBuy = summarizeTotals(rows, "buyTotal");
+  const totalSell = summarizeTotals(rows, "sellTotal");
 
   const sellTotalRange = columnRange(rows, "sellTotal");
   const buyTotalRange = columnRange(rows, "buyTotal");
@@ -165,8 +191,48 @@ export default function ItemAppraisalTable({ rows }: { rows: AppraisalRow[] }) {
           <tr>
             <td className="px-3 py-2">Total</td>
             <td className="px-3 py-2 tabular-nums">{fmt(totalQuantity)}</td>
-            <td className="px-3 py-2 tabular-nums">{fmt(totalSell)} ISK</td>
-            <td className="px-3 py-2 tabular-nums">{fmt(totalBuy)} ISK</td>
+            <td
+              className="px-3 py-2 tabular-nums"
+              title={
+                totalSell.hasUnknown
+                  ? "At least one item has no sell orders in this region, so the true sell total may be higher than shown"
+                  : undefined
+              }
+            >
+              <div className="flex items-center gap-1">
+                <span>
+                  {totalSell.allUnknown
+                    ? "??? ISK"
+                    : `${fmt(totalSell.value)}${totalSell.hasUnknown ? "+" : ""} ISK`}
+                </span>
+                {totalSell.hasUnknown && (
+                  <span className="text-amber-400" aria-label="Sell total is incomplete">
+                    ⚠
+                  </span>
+                )}
+              </div>
+            </td>
+            <td
+              className="px-3 py-2 tabular-nums"
+              title={
+                totalBuy.hasUnknown
+                  ? "At least one item has no buy orders in this region, so the true buy total may be higher than shown"
+                  : undefined
+              }
+            >
+              <div className="flex items-center gap-1">
+                <span>
+                  {totalBuy.allUnknown
+                    ? "??? ISK"
+                    : `${fmt(totalBuy.value)}${totalBuy.hasUnknown ? "+" : ""} ISK`}
+                </span>
+                {totalBuy.hasUnknown && (
+                  <span className="text-amber-400" aria-label="Buy total is incomplete">
+                    ⚠
+                  </span>
+                )}
+              </div>
+            </td>
           </tr>
         </tfoot>
       </table>

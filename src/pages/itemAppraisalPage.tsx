@@ -15,6 +15,18 @@ interface EncodedState {
 }
 
 const PLACEHOLDER_TEXT = "Copy-paste items from your inventory here";
+const REGION_SELECT_ID = "item-appraisal-region";
+const ITEM_LIST_TEXTAREA_ID = "item-appraisal-items";
+
+function isEncodedState(value: unknown): value is EncodedState {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof value.text === "string" &&
+    typeof value.region === "number" &&
+    Number.isFinite(value.region)
+  );
+}
 
 function RegionSelect({
   regionId,
@@ -28,10 +40,11 @@ function RegionSelect({
   const regions = getRegions();
   return (
     <div>
-      <label htmlFor="item-appraisal-region" className="mb-1 block text-sm font-medium text-zinc-400">
+      <label htmlFor={REGION_SELECT_ID} className="mb-1 block text-sm font-medium text-zinc-400">
         Market Region
       </label>
-      <select id="item-appraisal-region"
+      <select
+        id={REGION_SELECT_ID}
         value={regionId}
         onChange={(e) => setRegionId(Number(e.target.value))}
         disabled={disabled}
@@ -57,16 +70,24 @@ function ItemListTextarea({
   disabled: boolean;
 }) {
   return (
-    <textarea
-      aria-label="Inventory items"
-      value={text}
-      onChange={(e) => setText(e.target.value)}
-      disabled={disabled}
-      placeholder={PLACEHOLDER_TEXT}
-      rows={10}
-      spellCheck={false}
-      className="w-full max-w-2xl rounded border border-zinc-700 bg-zinc-800 px-3 py-2 font-mono text-sm text-zinc-100 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-    />
+    <div className="w-full max-w-2xl">
+      <label
+        htmlFor={ITEM_LIST_TEXTAREA_ID}
+        className="mb-1 block text-sm font-medium text-zinc-400"
+      >
+        Item List
+      </label>
+      <textarea
+        id={ITEM_LIST_TEXTAREA_ID}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        disabled={disabled}
+        placeholder={PLACEHOLDER_TEXT}
+        rows={10}
+        spellCheck={false}
+        className="w-full rounded border border-zinc-700 bg-zinc-800 px-3 py-2 font-mono text-sm text-zinc-100 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+      />
+    </div>
   );
 }
 
@@ -76,7 +97,8 @@ export default function ItemAppraisalPage() {
 
   const initialState = (() => {
     const encoded = searchParams.get(STATE_PARAM);
-    return encoded ? decodeStateFromUrlParam<EncodedState>(encoded) : null;
+    const decoded = encoded ? decodeStateFromUrlParam<unknown>(encoded) : null;
+    return isEncodedState(decoded) ? decoded : null;
   })();
 
   const [text, setText] = useState(initialState?.text ?? "");
@@ -90,6 +112,8 @@ export default function ItemAppraisalPage() {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const parsedItems = parseItemList(text);
 
   const loadAppraisal = async (items: AppraisalItem[], region: number) => {
     setLoading(true);
@@ -116,8 +140,7 @@ export default function ItemAppraisalPage() {
   };
 
   const handleEvaluate = () => {
-    const items = parseItemList(text);
-    if (items.length === 0) return;
+    if (parsedItems.length === 0) return;
 
     setSearchParams(
       (prev) => {
@@ -129,18 +152,19 @@ export default function ItemAppraisalPage() {
       { replace: true },
     );
 
-    void loadAppraisal(items, regionId);
+    void loadAppraisal(parsedItems, regionId);
   };
 
   // Immediately evaluate when the page is loaded with items already encoded in the URL.
   const didAutoEvaluate = useRef(false);
   useEffect(() => {
-    if (didAutoEvaluate.current) return;
-    didAutoEvaluate.current = true;
-
     const items = parseItemList(text);
     if (items.length === 0) return;
-    const timeoutId = setTimeout(() => void loadAppraisal(items, regionId), 0);
+    const timeoutId = setTimeout(() => {
+      if (didAutoEvaluate.current) return;
+      didAutoEvaluate.current = true;
+      void loadAppraisal(items, regionId);
+    }, 0);
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -168,7 +192,7 @@ export default function ItemAppraisalPage() {
           <button
             type="button"
             onClick={handleEvaluate}
-            disabled={loading || parseItemList(text).length === 0}
+            disabled={loading || parsedItems.length === 0}
             title="Evaluate"
             aria-label="Evaluate"
             className="shrink-0 rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 hover:bg-zinc-700 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"

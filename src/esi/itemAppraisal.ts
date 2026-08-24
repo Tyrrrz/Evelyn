@@ -22,7 +22,6 @@ const BATCH_SIZE = 10;
 
 /**
  * Parses a copy-pasted EVE inventory list, one item per line, where each line is an item name
- * followed by a quantity, separated by a tab (as produced by copying items out of the in-game
  * inventory window) or any run of whitespace. Duplicate item names are collapsed by summing their
  * quantities. Lines that don't end in a quantity are ignored.
  */
