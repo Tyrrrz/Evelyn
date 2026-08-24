@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import ItemAppraisalTable from "../components/itemAppraisalTable.tsx";
 import type { AppraisalItem, AppraisalRow } from "../esi/itemAppraisal.ts";
@@ -97,8 +97,14 @@ export default function ItemAppraisalPage() {
 
   const initialState = (() => {
     const encoded = searchParams.get(STATE_PARAM);
-    const decoded = encoded ? decodeStateFromUrlParam<unknown>(encoded) : null;
-    return isEncodedState(decoded) ? decoded : null;
+    if (!encoded) return null;
+
+    try {
+      const decoded = decodeStateFromUrlParam<unknown>(encoded);
+      return isEncodedState(decoded) ? decoded : null;
+    } catch {
+      return null;
+    }
   })();
 
   const [text, setText] = useState(initialState?.text ?? "");
@@ -154,21 +160,6 @@ export default function ItemAppraisalPage() {
 
     void loadAppraisal(parsedItems, regionId);
   };
-
-  // Immediately evaluate when the page is loaded with items already encoded in the URL.
-  const didAutoEvaluate = useRef(false);
-  useEffect(() => {
-    const items = parseItemList(text);
-    if (items.length === 0) return;
-    const timeoutId = setTimeout(() => {
-      if (didAutoEvaluate.current) return;
-      didAutoEvaluate.current = true;
-      void loadAppraisal(items, regionId);
-    }, 0);
-    return () => clearTimeout(timeoutId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   return (
     <div className="min-h-screen bg-zinc-950 font-sans text-zinc-100">
       <header className="border-b border-zinc-800 px-6 py-8 text-center">
