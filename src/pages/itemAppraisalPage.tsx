@@ -28,8 +28,10 @@ function RegionSelect({
   const regions = getRegions();
   return (
     <div>
-      <label className="mb-1 block text-sm font-medium text-zinc-400">Market Region</label>
-      <select
+      <label htmlFor="item-appraisal-region" className="mb-1 block text-sm font-medium text-zinc-400">
+        Market Region
+      </label>
+      <select id="item-appraisal-region"
         value={regionId}
         onChange={(e) => setRegionId(Number(e.target.value))}
         disabled={disabled}
