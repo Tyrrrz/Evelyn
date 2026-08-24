@@ -1,92 +1,71 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import LpStoreTable from "../components/lpStoreTable.tsx";
 import { getCorporations } from "../esi/client.ts";
 import type { LpStoreRow } from "../esi/lpStore.ts";
 import { fetchLpStoreRows } from "../esi/lpStore.ts";
 import { DEFAULT_REGION_ID, getRegions } from "../esi/regions.ts";
+import {
+  boolSearchParam,
+  numberSearchParam,
+  useSearchParamState,
+} from "../hooks/useSearchParamState.ts";
 
 interface Corporation {
   corporation_id: number;
   name: string;
 }
 
-const CORP_PARAM = "corp";
-const REGION_PARAM = "region";
-const OTHER_ITEMS_PARAM = "includeOtherItems";
-const BLUEPRINTS_PARAM = "includeBlueprints";
-const VOLATILE_MARKETS_PARAM = "includeVolatileMarkets";
-const UNPRICED_PARAM = "includeUnpricedItems";
-
-function parseBoolParam(value: string | null, defaultValue: boolean): boolean {
-  if (value === "true") return true;
-  if (value === "false") return false;
-  return defaultValue;
-}
-
 export default function LpStorePage() {
   const corporations = useMemo(() => getCorporations(), [getCorporations]);
   const regions = useMemo(() => getRegions(), [getRegions]);
-  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [selectedCorp, setSelectedCorp] = useState<Corporation | null>(() => {
-    const corpId = searchParams.get(CORP_PARAM);
-    return corporations.find((c) => String(c.corporation_id) === corpId) ?? null;
+  const [corpId, setCorpId] = useSearchParamState<number | null>("corp", null, {
+    serialize: (value) => String(value),
+    deserialize: numberSearchParam.deserialize,
   });
-  const [regionId, setRegionId] = useState(() => {
-    const paramRegionId = Number(searchParams.get(REGION_PARAM));
-    return regions.some((r) => r.regionId === paramRegionId) ? paramRegionId : DEFAULT_REGION_ID;
+  const selectedCorp = useMemo(
+    () => corporations.find((c) => c.corporation_id === corpId) ?? null,
+    [corporations, corpId],
+  );
+  const [regionId, setRegionId] = useSearchParamState<number>("region", DEFAULT_REGION_ID, {
+    ...numberSearchParam,
+    deserialize: (raw) => {
+      const parsed = numberSearchParam.deserialize?.(raw);
+      return parsed !== undefined && regions.some((r) => r.regionId === parsed)
+        ? parsed
+        : undefined;
+    },
   });
   const [rows, setRows] = useState<LpStoreRow[]>([]);
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [includeOtherItems, setIncludeOtherItems] = useState(() =>
-    parseBoolParam(searchParams.get(OTHER_ITEMS_PARAM), true),
+  const [includeOtherItems, setIncludeOtherItems] = useSearchParamState(
+    "includeOtherItems",
+    true,
+    boolSearchParam,
   );
-  const [includeBlueprints, setIncludeBlueprints] = useState(() =>
-    parseBoolParam(searchParams.get(BLUEPRINTS_PARAM), false),
+  const [includeBlueprints, setIncludeBlueprints] = useSearchParamState(
+    "includeBlueprints",
+    false,
+    boolSearchParam,
   );
-  const [includeVolatileMarkets, setIncludeVolatileMarkets] = useState(() =>
-    parseBoolParam(searchParams.get(VOLATILE_MARKETS_PARAM), false),
+  const [includeVolatileMarkets, setIncludeVolatileMarkets] = useSearchParamState(
+    "includeVolatileMarkets",
+    false,
+    boolSearchParam,
   );
-  const [includeUnpricedItems, setIncludeUnpricedItems] = useState(() =>
-    parseBoolParam(searchParams.get(UNPRICED_PARAM), false),
+  const [includeUnpricedItems, setIncludeUnpricedItems] = useSearchParamState(
+    "includeUnpricedItems",
+    false,
+    boolSearchParam,
   );
-
-  // Keep the query params in sync with the current selection and filters.
-  useEffect(() => {
-    setSearchParams(
-      (prev) => {
-        const params = new URLSearchParams(prev);
-        if (selectedCorp) {
-          params.set(CORP_PARAM, String(selectedCorp.corporation_id));
-        } else {
-          params.delete(CORP_PARAM);
-        }
-        params.set(REGION_PARAM, String(regionId));
-        params.set(OTHER_ITEMS_PARAM, String(includeOtherItems));
-        params.set(BLUEPRINTS_PARAM, String(includeBlueprints));
-        params.set(VOLATILE_MARKETS_PARAM, String(includeVolatileMarkets));
-        params.set(UNPRICED_PARAM, String(includeUnpricedItems));
-        return params;
-      },
-      { replace: true },
-    );
-  }, [
-    selectedCorp,
-    regionId,
-    includeOtherItems,
-    includeBlueprints,
-    includeVolatileMarkets,
-    includeUnpricedItems,
-    setSearchParams,
-  ]);
 
   const handleCorpChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const corp = corporations.find((c) => String(c.corporation_id) === e.target.value) ?? null;
-    setSelectedCorp(corp);
+    setCorpId(corp?.corporation_id ?? null);
   };
 
   const loadLpStoreData = async (corp: Corporation, region: number, withBlueprints: boolean) => {
