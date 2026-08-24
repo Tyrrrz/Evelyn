@@ -22,8 +22,9 @@ const BATCH_SIZE = 10;
 
 /**
  * Parses a copy-pasted EVE inventory list, one item per line, where each line is an item name
- * inventory window) or any run of whitespace. Duplicate item names are collapsed by summing their
- * quantities. Lines that don't end in a quantity are ignored.
+ * followed by a quantity, separated by a tab (as copied from the inventory window) or any run of
+ * whitespace. Duplicate item names are collapsed by summing their quantities. Lines that don't end
+ * in a quantity are ignored.
  */
 export function parseItemList(text: string): AppraisalItem[] {
   const quantityByName = new Map<string, number>();
