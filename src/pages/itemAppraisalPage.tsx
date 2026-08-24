@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import ItemAppraisalTable from "../components/itemAppraisalTable.tsx";
 import type { AppraisalItem, AppraisalRow } from "../esi/itemAppraisal.ts";
@@ -95,7 +95,7 @@ export default function ItemAppraisalPage() {
   const regions = getRegions();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const initialState = (() => {
+  const initialState = useMemo(() => {
     const encoded = searchParams.get(STATE_PARAM);
     if (!encoded) return null;
 
@@ -105,7 +105,8 @@ export default function ItemAppraisalPage() {
     } catch {
       return null;
     }
-  })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [text, setText] = useState(initialState?.text ?? "");
   const [regionId, setRegionId] = useState(() => {
