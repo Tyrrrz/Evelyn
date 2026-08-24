@@ -23,10 +23,11 @@ const BATCH_SIZE = 10;
 /**
  * Parses a copy-pasted EVE inventory list, one item per line, where each line is an item name
  * followed by a quantity, separated by a tab (as produced by copying items out of the in-game
- * inventory window) or any run of whitespace. Lines that don't end in a quantity are ignored.
+ * inventory window) or any run of whitespace. Duplicate item names are collapsed by summing their
+ * quantities. Lines that don't end in a quantity are ignored.
  */
 export function parseItemList(text: string): AppraisalItem[] {
-  const items: AppraisalItem[] = [];
+  const quantityByName = new Map<string, number>();
   for (const rawLine of text.split("\n")) {
     const line = rawLine.trim();
     if (!line) continue;
@@ -38,9 +39,9 @@ export function parseItemList(text: string): AppraisalItem[] {
     const quantity = parseInt(match.groups.quantity.replace(/,/gu, ""), 10);
     if (!name || !Number.isFinite(quantity) || quantity <= 0) continue;
 
-    items.push({ name, quantity });
+    quantityByName.set(name, (quantityByName.get(name) ?? 0) + quantity);
   }
-  return items;
+  return [...quantityByName].map(([name, quantity]) => ({ name, quantity }));
 }
 
 /**
