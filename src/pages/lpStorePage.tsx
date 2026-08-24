@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import LpStoreTable from "../components/lpStoreTable.tsx";
 import { getCorporations } from "../esi/client.ts";
 import type { LpStoreRow } from "../esi/lpStore.ts";
@@ -150,9 +150,9 @@ export default function LpStorePage() {
     <div className="min-h-screen bg-zinc-950 font-sans text-zinc-100">
       <header className="border-b border-zinc-800 px-6 py-8 text-center">
         <h1 className="text-2xl font-bold tracking-tight">
-          <a href="/" className="text-amber-400 hover:text-amber-300">
+          <Link to="/" className="text-amber-400 hover:text-amber-300">
             Evelyn
-          </a>
+          </Link>
           <span className="mx-2 font-normal text-zinc-600">/</span>
           <span className="font-normal text-zinc-300">LP Store</span>
         </h1>
