@@ -56,6 +56,7 @@ function ItemListTextarea({
 }) {
   return (
     <textarea
+      aria-label="Inventory items"
       value={text}
       onChange={(e) => setText(e.target.value)}
       disabled={disabled}
