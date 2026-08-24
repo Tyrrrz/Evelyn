@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import ItemAppraisalTable from "../components/itemAppraisalTable.tsx";
 import type { AppraisalItem, AppraisalRow } from "../esi/itemAppraisal.ts";
 import { fetchAppraisalRows, parseItemList } from "../esi/itemAppraisal.ts";
@@ -165,9 +165,9 @@ export default function ItemAppraisalPage() {
     <div className="min-h-screen bg-zinc-950 font-sans text-zinc-100">
       <header className="border-b border-zinc-800 px-6 py-8 text-center">
         <h1 className="text-2xl font-bold tracking-tight">
-          <a href="/" className="text-amber-400 hover:text-amber-300">
+          <Link to="/" className="text-amber-400 hover:text-amber-300">
             Evelyn
-          </a>
+          </Link>
           <span className="mx-2 font-normal text-zinc-600">/</span>
           <span className="font-normal text-zinc-300">Item Appraisal</span>
         </h1>
