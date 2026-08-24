@@ -148,14 +148,15 @@ export default function LpStorePage() {
 
   return (
     <div className="min-h-screen bg-zinc-950 font-sans text-zinc-100">
-      <header className="border-b border-zinc-800 px-6 py-4">
-        <h1 className="text-xl font-bold tracking-tight">
+      <header className="border-b border-zinc-800 px-6 py-8 text-center">
+        <h1 className="text-2xl font-bold tracking-tight">
           <a href="/" className="text-amber-400 hover:text-amber-300">
             Evelyn
           </a>
-          <span className="ml-2 font-normal text-zinc-400">/ LP Store</span>
+          <span className="mx-2 font-normal text-zinc-600">/</span>
+          <span className="font-normal text-zinc-300">LP Store</span>
         </h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-2 text-sm text-zinc-500">
           LP-to-ISK conversion helper — find the most profitable LP store exchanges
         </p>
       </header>
