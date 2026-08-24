@@ -20,6 +20,15 @@ export default function HomePage() {
             Find the most profitable LP-to-ISK exchanges for your NPC corporation
           </span>
         </Link>
+        <Link
+          to="/item-appraisal"
+          className="flex flex-col gap-1 rounded-lg border border-zinc-800 bg-zinc-900 p-5 transition-colors hover:border-amber-500 hover:bg-zinc-800"
+        >
+          <span className="font-semibold text-zinc-100">Item Appraisal</span>
+          <span className="text-sm text-zinc-500">
+            Paste a list of items from your inventory to get their Buy/Sell prices and totals
+          </span>
+        </Link>
       </div>
     </div>
   );

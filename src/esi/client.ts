@@ -81,6 +81,20 @@ async function esiGet<T>(path: string, cacheable = false): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function esiPost<T>(path: string, body: unknown): Promise<T> {
+  const url = `${ESI_BASE}${path}`;
+  const res = await fetch(url, {
+    method: "POST",
+    cache: "no-store",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new Error(`ESI ${res.status}: ${url}`);
+  }
+  return res.json() as Promise<T>;
+}
+
 async function esiGetAllPages<T>(path: string, extraSep = "&"): Promise<T[]> {
   const url = `${ESI_BASE}${path}`;
   // Price data is never cached
@@ -142,6 +156,32 @@ export async function getTypeInfoBatch(typeIds: number[]): Promise<Map<number, T
   const unique = [...new Set(typeIds)];
   const results = await Promise.all(unique.map((id) => getTypeInfo(id)));
   return new Map(results.map((t) => [t.type_id, t]));
+}
+
+/** Max number of names ESI's /universe/ids/ endpoint accepts per request. */
+const RESOLVE_NAMES_BATCH_SIZE = 500;
+
+/**
+ * Resolves item type names (as copy-pasted from the in-game inventory) to their type IDs, via
+ * ESI's name-resolution endpoint. Names are matched exactly (case-sensitive); names that don't
+ * match any known item type (of any kind — not just inventory types) are omitted from the result.
+ */
+export async function resolveTypeIdsByName(names: string[]): Promise<Map<string, number>> {
+  const unique = [...new Set(names)];
+  const result = new Map<string, number>();
+
+  for (let i = 0; i < unique.length; i += RESOLVE_NAMES_BATCH_SIZE) {
+    const batch = unique.slice(i, i + RESOLVE_NAMES_BATCH_SIZE);
+    const response = await esiPost<{ inventory_types?: { id: number; name: string }[] }>(
+      "/universe/ids/",
+      batch,
+    );
+    for (const t of response.inventory_types ?? []) {
+      result.set(t.name, t.id);
+    }
+  }
+
+  return result;
 }
 
 /**
