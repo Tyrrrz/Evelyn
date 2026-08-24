@@ -10,8 +10,8 @@ function App() {
       <Analytics />
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/lp-store" element={<LpStorePage />} />
-        <Route path="/item-appraisal" element={<ItemAppraisalPage />} />
+        <Route path="/lp" element={<LpStorePage />} />
+        <Route path="/appraisal" element={<ItemAppraisalPage />} />
       </Routes>
     </>
   );

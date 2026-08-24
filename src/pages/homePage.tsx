@@ -12,7 +12,7 @@ export default function HomePage() {
 
       <div className="grid w-full max-w-sm gap-4">
         <Link
-          to="/lp-store"
+          to="/lp"
           className="flex flex-col gap-1 rounded-lg border border-zinc-800 bg-zinc-900 p-5 transition-colors hover:border-amber-500 hover:bg-zinc-800"
         >
           <span className="font-semibold text-zinc-100">LP Store</span>
@@ -21,7 +21,7 @@ export default function HomePage() {
           </span>
         </Link>
         <Link
-          to="/item-appraisal"
+          to="/appraisal"
           className="flex flex-col gap-1 rounded-lg border border-zinc-800 bg-zinc-900 p-5 transition-colors hover:border-amber-500 hover:bg-zinc-800"
         >
           <span className="font-semibold text-zinc-100">Item Appraisal</span>
