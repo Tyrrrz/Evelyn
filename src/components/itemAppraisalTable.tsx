@@ -62,6 +62,25 @@ function Th({
   );
 }
 
+/**
+ * Interpolates a yellow -> green color for a value on a [min, max] scale.
+ * Values at or below min are yellow; values at/above max are green.
+ */
+function ratioColor(value: number | null, min: number, max: number): string {
+  if (value === null) return "#71717a"; // zinc-500, unknown
+
+  const t = max > min ? Math.max(0, Math.min(1, (value - min) / (max - min))) : 1;
+  const hue = 60 + t * 60; // 60 = yellow, 120 = green
+  return `hsl(${hue}, 75%, 45%)`;
+}
+
+/** Computes the [min, max] range of a column's non-null values, for use with {@link ratioColor}. */
+function columnRange(rows: AppraisalRow[], key: SortKey): { min: number; max: number } {
+  const values = rows.map((r) => r[key]).filter((v): v is number => typeof v === "number");
+  if (!values.length) return { min: 0, max: 0 };
+  return { min: Math.min(...values), max: Math.max(...values) };
+}
+
 export default function ItemAppraisalTable({ rows }: { rows: AppraisalRow[] }) {
   const [sortKey, setSortKey] = useState<SortKey>("sellTotal");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -79,6 +98,11 @@ export default function ItemAppraisalTable({ rows }: { rows: AppraisalRow[] }) {
 
   const totalBuy = rows.reduce((s, r) => s + (r.buyTotal ?? 0), 0);
   const totalSell = rows.reduce((s, r) => s + (r.sellTotal ?? 0), 0);
+
+  const buyPriceRange = columnRange(rows, "buyPrice");
+  const sellPriceRange = columnRange(rows, "sellPrice");
+  const buyTotalRange = columnRange(rows, "buyTotal");
+  const sellTotalRange = columnRange(rows, "sellTotal");
 
   return (
     <div className="overflow-x-auto rounded border border-zinc-800">
@@ -110,10 +134,34 @@ export default function ItemAppraisalTable({ rows }: { rows: AppraisalRow[] }) {
             <tr key={row.typeId} className={i % 2 === 0 ? "bg-zinc-950" : "bg-zinc-900"}>
               <td className="px-3 py-2 font-medium">{row.typeName}</td>
               <td className="px-3 py-2 tabular-nums">{fmt(row.quantity)}</td>
-              <td className="px-3 py-2 tabular-nums">{fmt(row.buyPrice)}</td>
-              <td className="px-3 py-2 tabular-nums">{fmt(row.sellPrice)}</td>
-              <td className="px-3 py-2 tabular-nums">{fmt(row.buyTotal)}</td>
-              <td className="px-3 py-2 tabular-nums">{fmt(row.sellTotal)}</td>
+              <td
+                className="px-3 py-2 font-semibold tabular-nums"
+                style={{ color: ratioColor(row.buyPrice, buyPriceRange.min, buyPriceRange.max) }}
+              >
+                {fmt(row.buyPrice)}
+              </td>
+              <td
+                className="px-3 py-2 font-semibold tabular-nums"
+                style={{
+                  color: ratioColor(row.sellPrice, sellPriceRange.min, sellPriceRange.max),
+                }}
+              >
+                {fmt(row.sellPrice)}
+              </td>
+              <td
+                className="px-3 py-2 font-semibold tabular-nums"
+                style={{ color: ratioColor(row.buyTotal, buyTotalRange.min, buyTotalRange.max) }}
+              >
+                {fmt(row.buyTotal)}
+              </td>
+              <td
+                className="px-3 py-2 font-semibold tabular-nums"
+                style={{
+                  color: ratioColor(row.sellTotal, sellTotalRange.min, sellTotalRange.max),
+                }}
+              >
+                {fmt(row.sellTotal)}
+              </td>
             </tr>
           ))}
         </tbody>

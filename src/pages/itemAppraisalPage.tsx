@@ -14,7 +14,58 @@ interface EncodedState {
   region: number;
 }
 
-const EXAMPLE_TEXT = `Sisters Core Scanner Probe\t8\nAtavum\t3\nCarbon\t19`;
+const PLACEHOLDER_TEXT = "Copy-paste items from your inventory here";
+
+function RegionSelect({
+  regionId,
+  setRegionId,
+  disabled,
+}: {
+  regionId: number;
+  setRegionId: (id: number) => void;
+  disabled: boolean;
+}) {
+  const regions = getRegions();
+  return (
+    <div>
+      <label className="mb-1 block text-sm font-medium text-zinc-400">Market Region</label>
+      <select
+        value={regionId}
+        onChange={(e) => setRegionId(Number(e.target.value))}
+        disabled={disabled}
+        className="w-64 rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {regions.map((r) => (
+          <option key={r.regionId} value={r.regionId}>
+            {r.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function ItemListTextarea({
+  text,
+  setText,
+  disabled,
+}: {
+  text: string;
+  setText: (text: string) => void;
+  disabled: boolean;
+}) {
+  return (
+    <textarea
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      disabled={disabled}
+      placeholder={PLACEHOLDER_TEXT}
+      rows={10}
+      spellCheck={false}
+      className="w-full max-w-2xl rounded border border-zinc-700 bg-zinc-800 px-3 py-2 font-mono text-sm text-zinc-100 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+    />
+  );
+}
 
 export default function ItemAppraisalPage() {
   const regions = getRegions();
@@ -108,43 +159,33 @@ export default function ItemAppraisalPage() {
 
       <main className="mx-auto max-w-screen-2xl px-6 py-6">
         <div className="mb-4 flex flex-col items-center gap-2">
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            disabled={loading}
-            placeholder={EXAMPLE_TEXT}
-            rows={10}
-            spellCheck={false}
-            className="w-full max-w-2xl rounded border border-zinc-700 bg-zinc-800 px-3 py-2 font-mono text-sm text-zinc-100 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-          />
+          {fetchedAt ? (
+            <details className="w-full max-w-2xl">
+              <summary className="cursor-pointer text-center text-sm text-zinc-400 hover:text-zinc-300">
+                Show item list & region selection
+              </summary>
+              <div className="mt-2 flex flex-col items-center gap-2">
+                <RegionSelect regionId={regionId} setRegionId={setRegionId} disabled={loading} />
+                <ItemListTextarea text={text} setText={setText} disabled={loading} />
+              </div>
+            </details>
+          ) : (
+            <>
+              <RegionSelect regionId={regionId} setRegionId={setRegionId} disabled={loading} />
+              <ItemListTextarea text={text} setText={setText} disabled={loading} />
+            </>
+          )}
 
-          <div className="flex flex-wrap items-end justify-center gap-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-400">Market Region</label>
-              <select
-                value={regionId}
-                onChange={(e) => setRegionId(Number(e.target.value))}
-                disabled={loading}
-                className="w-64 rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {regions.map((r) => (
-                  <option key={r.regionId} value={r.regionId}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button
-              type="button"
-              onClick={handleEvaluate}
-              disabled={loading || parseItemList(text).length === 0}
-              title="Evaluate"
-              aria-label="Evaluate"
-              className="shrink-0 rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 hover:bg-zinc-700 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Evaluate
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleEvaluate}
+            disabled={loading || parseItemList(text).length === 0}
+            title="Evaluate"
+            aria-label="Evaluate"
+            className="shrink-0 rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 hover:bg-zinc-700 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Evaluate
+          </button>
         </div>
 
         {fetchedAt && (
