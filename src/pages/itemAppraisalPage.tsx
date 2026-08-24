@@ -159,22 +159,8 @@ export default function ItemAppraisalPage() {
 
       <main className="mx-auto max-w-screen-2xl px-6 py-6">
         <div className="mb-4 flex flex-col items-center gap-2">
-          {fetchedAt ? (
-            <details className="w-full max-w-2xl">
-              <summary className="cursor-pointer text-center text-sm text-zinc-400 hover:text-zinc-300">
-                Show item list & region selection
-              </summary>
-              <div className="mt-2 flex flex-col items-center gap-2">
-                <RegionSelect regionId={regionId} setRegionId={setRegionId} disabled={loading} />
-                <ItemListTextarea text={text} setText={setText} disabled={loading} />
-              </div>
-            </details>
-          ) : (
-            <>
-              <RegionSelect regionId={regionId} setRegionId={setRegionId} disabled={loading} />
-              <ItemListTextarea text={text} setText={setText} disabled={loading} />
-            </>
-          )}
+          <RegionSelect regionId={regionId} setRegionId={setRegionId} disabled={loading} />
+          <ItemListTextarea text={text} setText={setText} disabled={loading} />
 
           <button
             type="button"

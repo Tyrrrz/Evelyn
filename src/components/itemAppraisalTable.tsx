@@ -2,10 +2,7 @@ import { useState } from "react";
 import type { AppraisalRow } from "../esi/itemAppraisal.ts";
 import { fmt } from "../utils/fmt.ts";
 
-type SortKey = keyof Pick<
-  AppraisalRow,
-  "typeName" | "quantity" | "buyPrice" | "sellPrice" | "buyTotal" | "sellTotal"
->;
+type SortKey = keyof Pick<AppraisalRow, "typeName" | "quantity" | "sellTotal" | "buyTotal">;
 
 type SortDir = "asc" | "desc";
 
@@ -81,6 +78,28 @@ function columnRange(rows: AppraisalRow[], key: SortKey): { min: number; max: nu
   return { min: Math.min(...values), max: Math.max(...values) };
 }
 
+/** Merged cell showing the total value (colored) and, if quantity isn't 1, the per-item price below. */
+function ValueCell({
+  total,
+  price,
+  quantity,
+  range,
+}: {
+  total: number | null;
+  price: number | null;
+  quantity: number;
+  range: { min: number; max: number };
+}) {
+  return (
+    <td className="px-3 py-2 tabular-nums">
+      <div className="font-semibold" style={{ color: ratioColor(total, range.min, range.max) }}>
+        {fmt(total)} ISK
+      </div>
+      {quantity !== 1 && <div className="text-xs text-zinc-500">{fmt(price)} ISK per item</div>}
+    </td>
+  );
+}
+
 export default function ItemAppraisalTable({ rows }: { rows: AppraisalRow[] }) {
   const [sortKey, setSortKey] = useState<SortKey>("sellTotal");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -96,13 +115,12 @@ export default function ItemAppraisalTable({ rows }: { rows: AppraisalRow[] }) {
   const sorted = sortRows(rows, sortKey, sortDir);
   const thProps = { sortKey, sortDir, onSort: handleSort };
 
+  const totalQuantity = rows.reduce((s, r) => s + r.quantity, 0);
   const totalBuy = rows.reduce((s, r) => s + (r.buyTotal ?? 0), 0);
   const totalSell = rows.reduce((s, r) => s + (r.sellTotal ?? 0), 0);
 
-  const buyPriceRange = columnRange(rows, "buyPrice");
-  const sellPriceRange = columnRange(rows, "sellPrice");
-  const buyTotalRange = columnRange(rows, "buyTotal");
   const sellTotalRange = columnRange(rows, "sellTotal");
+  const buyTotalRange = columnRange(rows, "buyTotal");
 
   return (
     <div className="overflow-x-auto rounded border border-zinc-800">
@@ -115,17 +133,11 @@ export default function ItemAppraisalTable({ rows }: { rows: AppraisalRow[] }) {
             <Th col="quantity" {...thProps}>
               Quantity
             </Th>
-            <Th col="buyPrice" title="Best buy order price per unit" {...thProps}>
-              Buy Price
+            <Th col="sellTotal" title="Best sell order price × quantity" {...thProps}>
+              Sell
             </Th>
-            <Th col="sellPrice" title="Best sell order price per unit" {...thProps}>
-              Sell Price
-            </Th>
-            <Th col="buyTotal" title="Buy price × quantity" {...thProps}>
-              Buy Total
-            </Th>
-            <Th col="sellTotal" title="Sell price × quantity" {...thProps}>
-              Sell Total
+            <Th col="buyTotal" title="Best buy order price × quantity" {...thProps}>
+              Buy
             </Th>
           </tr>
         </thead>
@@ -134,44 +146,27 @@ export default function ItemAppraisalTable({ rows }: { rows: AppraisalRow[] }) {
             <tr key={row.typeId} className={i % 2 === 0 ? "bg-zinc-950" : "bg-zinc-900"}>
               <td className="px-3 py-2 font-medium">{row.typeName}</td>
               <td className="px-3 py-2 tabular-nums">{fmt(row.quantity)}</td>
-              <td
-                className="px-3 py-2 font-semibold tabular-nums"
-                style={{ color: ratioColor(row.buyPrice, buyPriceRange.min, buyPriceRange.max) }}
-              >
-                {fmt(row.buyPrice)}
-              </td>
-              <td
-                className="px-3 py-2 font-semibold tabular-nums"
-                style={{
-                  color: ratioColor(row.sellPrice, sellPriceRange.min, sellPriceRange.max),
-                }}
-              >
-                {fmt(row.sellPrice)}
-              </td>
-              <td
-                className="px-3 py-2 font-semibold tabular-nums"
-                style={{ color: ratioColor(row.buyTotal, buyTotalRange.min, buyTotalRange.max) }}
-              >
-                {fmt(row.buyTotal)}
-              </td>
-              <td
-                className="px-3 py-2 font-semibold tabular-nums"
-                style={{
-                  color: ratioColor(row.sellTotal, sellTotalRange.min, sellTotalRange.max),
-                }}
-              >
-                {fmt(row.sellTotal)}
-              </td>
+              <ValueCell
+                total={row.sellTotal}
+                price={row.sellPrice}
+                quantity={row.quantity}
+                range={sellTotalRange}
+              />
+              <ValueCell
+                total={row.buyTotal}
+                price={row.buyPrice}
+                quantity={row.quantity}
+                range={buyTotalRange}
+              />
             </tr>
           ))}
         </tbody>
         <tfoot className="bg-zinc-800 font-semibold text-zinc-100">
           <tr>
-            <td className="px-3 py-2" colSpan={4}>
-              Total
-            </td>
-            <td className="px-3 py-2 tabular-nums">{fmt(totalBuy)}</td>
-            <td className="px-3 py-2 tabular-nums">{fmt(totalSell)}</td>
+            <td className="px-3 py-2">Total</td>
+            <td className="px-3 py-2 tabular-nums">{fmt(totalQuantity)}</td>
+            <td className="px-3 py-2 tabular-nums">{fmt(totalSell)} ISK</td>
+            <td className="px-3 py-2 tabular-nums">{fmt(totalBuy)} ISK</td>
           </tr>
         </tfoot>
       </table>
