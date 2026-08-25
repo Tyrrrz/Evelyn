@@ -7,6 +7,10 @@ interface SearchParamStateOptions<T> {
   deserialize?: (raw: string) => T | undefined;
 }
 
+interface SearchParamStateOptionsWithDeserializer<T> extends SearchParamStateOptions<T> {
+  deserialize: (raw: string) => T | undefined;
+}
+
 const stringSearchParamDeserialize = (raw: string) => raw;
 
 export function useSearchParamState(
@@ -17,7 +21,7 @@ export function useSearchParamState(
 export function useSearchParamState<T>(
   key: string,
   initialState: T | (() => T),
-  options: SearchParamStateOptions<T>,
+  options: SearchParamStateOptionsWithDeserializer<T>,
 ): [T, (value: T) => void];
 /**
  * Like `useState`, but persists the value in a URL search param (replacing the current
