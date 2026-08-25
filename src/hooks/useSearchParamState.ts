@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 interface SearchParamStateOptions<T> {
@@ -18,10 +18,7 @@ export function useSearchParamState<T>(
 ): [T, (value: T) => void] {
   const { serialize = String, deserialize } = options;
   const [searchParams, setSearchParams] = useSearchParams();
-  const fallbackState = useMemo(
-    () => (initialState instanceof Function ? initialState() : initialState),
-    [initialState],
-  );
+  const [fallbackState] = useState(initialState);
   const state = useMemo(() => {
     const raw = searchParams.get(key);
     const parsed = raw !== null && deserialize ? deserialize(raw) : undefined;
