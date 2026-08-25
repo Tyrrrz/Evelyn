@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 interface SearchParamStateOptions<T> {
-  serialize?: (value: T) => string;
+  serialize?: (value: T) => string | undefined;
   /** Return `undefined` to fall back to the initial state (e.g. when the param is malformed). */
   deserialize?: (raw: string) => T | undefined;
 }
@@ -32,7 +32,9 @@ export function useSearchParamState<T>(
       setSearchParams(
         (prev) => {
           const params = new URLSearchParams(prev);
-          params.set(key, serialize(value));
+          const serialized = serialize(value);
+          if (serialized === undefined) params.delete(key);
+          else params.set(key, serialized);
           return params;
         },
         { replace: true },

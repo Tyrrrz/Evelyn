@@ -21,7 +21,7 @@ export default function LpStorePage() {
   const regions = useMemo(() => getRegions(), [getRegions]);
 
   const [corpId, setCorpId] = useSearchParamState<number | null>("corp", null, {
-    serialize: (value) => String(value),
+    serialize: (value) => (value === null ? undefined : String(value)),
     deserialize: numberSearchParam.deserialize,
   });
   const selectedCorp = useMemo(
