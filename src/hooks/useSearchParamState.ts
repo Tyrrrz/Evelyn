@@ -34,8 +34,7 @@ export function useSearchParamState<T>(
 ): [T, (value: T) => void] {
   const serialize = options?.serialize ?? String;
   const deserialize =
-    options?.deserialize ??
-    (stringSearchParamDeserialize as (raw: string) => Extract<T, string>);
+    options?.deserialize ?? (stringSearchParamDeserialize as (raw: string) => Extract<T, string>);
   const [searchParams, setSearchParams] = useSearchParams();
   const [fallbackState] = useState(initialState);
   const state = useMemo(() => {
