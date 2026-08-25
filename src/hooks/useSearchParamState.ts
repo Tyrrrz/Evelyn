@@ -7,6 +7,18 @@ interface SearchParamStateOptions<T> {
   deserialize?: (raw: string) => T | undefined;
 }
 
+const stringSearchParamDeserialize = (raw: string) => raw;
+
+export function useSearchParamState(
+  key: string,
+  initialState: string | (() => string),
+  options?: SearchParamStateOptions<string>,
+): [string, (value: string) => void];
+export function useSearchParamState<T>(
+  key: string,
+  initialState: T | (() => T),
+  options: SearchParamStateOptions<T>,
+): [T, (value: T) => void];
 /**
  * Like `useState`, but persists the value in a URL search param (replacing the current
  * history entry) so that the page's state survives reloads and can be shared via link.
@@ -14,14 +26,17 @@ interface SearchParamStateOptions<T> {
 export function useSearchParamState<T>(
   key: string,
   initialState: T | (() => T),
-  options: SearchParamStateOptions<T> = {},
+  options?: SearchParamStateOptions<T>,
 ): [T, (value: T) => void] {
-  const { serialize = String, deserialize } = options;
+  const serialize = options?.serialize ?? String;
+  const deserialize =
+    options?.deserialize ??
+    (stringSearchParamDeserialize as (raw: string) => Extract<T, string>);
   const [searchParams, setSearchParams] = useSearchParams();
   const [fallbackState] = useState(initialState);
   const state = useMemo(() => {
     const raw = searchParams.get(key);
-    const parsed = raw !== null && deserialize ? deserialize(raw) : undefined;
+    const parsed = raw !== null ? deserialize(raw) : undefined;
     return parsed !== undefined ? parsed : fallbackState;
   }, [searchParams, key, deserialize, fallbackState]);
 
