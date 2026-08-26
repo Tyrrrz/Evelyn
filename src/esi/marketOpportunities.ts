@@ -273,7 +273,11 @@ export async function fetchRawMarketOpportunities(
   for (let i = 0; i < uniqueRegionIds.length; i += REGION_BATCH_SIZE) {
     const batch = uniqueRegionIds.slice(i, i + REGION_BATCH_SIZE);
     const ordersByRegion = await Promise.all(batch.map((regionId) => getAllMarketOrders(regionId)));
-    allOrders.push(...ordersByRegion.flat());
+    // Not `allOrders.push(...ordersByRegion.flat())`: busy regions can have well over 100k orders,
+    // and spreading that many elements as call arguments overflows the engine's call stack.
+    for (const orders of ordersByRegion) {
+      for (const order of orders) allOrders.push(order);
+    }
     onProgress?.(
       "Fetching market orders",
       Math.min(i + batch.length, uniqueRegionIds.length),
@@ -297,7 +301,12 @@ export async function fetchRawMarketOpportunities(
     if (sellOrders.length && buyOrders.length) {
       const sellLevels = buildStockLevels(sellOrders, false);
       const buyLevels = buildStockLevels(buyOrders, true);
-      rawOpportunities.push(...buildOpportunities(typeId, sellLevels, buyLevels));
+      // Not `rawOpportunities.push(...buildOpportunities(...))`: with all regions scanned, a
+      // popular item can have enough price levels that spreading them as call arguments risks
+      // the same call-stack overflow as the order-collection loop above.
+      for (const opp of buildOpportunities(typeId, sellLevels, buyLevels)) {
+        rawOpportunities.push(opp);
+      }
     }
     done++;
     if (done % 200 === 0) onProgress?.("Finding opportunities", done, ordersByType.size);
