@@ -8,7 +8,7 @@
 /src/esi/blueprintData.json
 /src/esi/npcCorporationData.json
 /src/esi/regionData.json
-/src/esi/harvestableData.json
+/src/esi/miningData.json
 
 # misc
 .DS_Store

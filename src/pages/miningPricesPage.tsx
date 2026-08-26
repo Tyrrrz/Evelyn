@@ -1,12 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import HarvestablePricesTable from "../components/harvestablePricesTable.tsx";
 import Layout from "../components/layout.tsx";
-import type { HarvestablePriceRow } from "../esi/harvestablePrices.ts";
-import { fetchHarvestablePriceRows } from "../esi/harvestablePrices.ts";
+import MiningPricesTable, { categorySectionId } from "../components/miningPricesTable.tsx";
+import type { MiningCategory } from "../esi/mining.ts";
+import type { MiningPriceRow } from "../esi/miningPrices.ts";
+import { fetchMiningPriceRows } from "../esi/miningPrices.ts";
 import { DEFAULT_REGION_ID, getRegions } from "../esi/regions.ts";
 import { numberSearchParam, useSearchParamState } from "../hooks/useSearchParamState.ts";
 
-export default function HarvestablePricesPage() {
+const CATEGORIES: { category: MiningCategory; label: string }[] = [
+  { category: "ore", label: "Ore" },
+  { category: "gas", label: "Gas" },
+  { category: "ice", label: "Ice" },
+];
+
+export default function MiningPricesPage() {
   const regions = getRegions();
 
   const [regionId, setRegionId] = useSearchParamState<number>("region", DEFAULT_REGION_ID, {
@@ -18,7 +25,7 @@ export default function HarvestablePricesPage() {
         : undefined;
     },
   });
-  const [rows, setRows] = useState<HarvestablePriceRow[]>([]);
+  const [rows, setRows] = useState<MiningPriceRow[]>([]);
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
@@ -31,7 +38,7 @@ export default function HarvestablePricesPage() {
     setRows([]);
     setFetchedAt(null);
     try {
-      const data = await fetchHarvestablePriceRows(region, (done, total) =>
+      const data = await fetchMiningPriceRows(region, (done, total) =>
         setProgress({ done, total }),
       );
       setRows(data);
@@ -91,8 +98,25 @@ export default function HarvestablePricesPage() {
       </div>
 
       {fetchedAt && (
-        <div className="mb-4 text-center text-xs text-zinc-500">
+        <div className="mb-2 text-center text-xs text-zinc-500">
           {rows.length} items • fetched {fetchedAt.toLocaleString()}
+        </div>
+      )}
+
+      {!loading && fetchedAt && rows.length > 0 && (
+        <div className="mb-4 flex items-center justify-center gap-2 text-xs text-zinc-500">
+          <span>Jump to:</span>
+          {CATEGORIES.filter(({ category }) => rows.some((r) => r.category === category)).map(
+            ({ category, label }) => (
+              <a
+                key={category}
+                href={`#${categorySectionId(category)}`}
+                className="rounded border border-zinc-700 px-2 py-1 text-zinc-300 hover:border-amber-500 hover:text-amber-400"
+              >
+                {label}
+              </a>
+            ),
+          )}
         </div>
       )}
 
@@ -109,10 +133,10 @@ export default function HarvestablePricesPage() {
 
       {error && <div className="mb-4 text-center text-sm text-red-400">Error: {error}</div>}
 
-      {!loading && rows.length > 0 && <HarvestablePricesTable rows={rows} />}
+      {!loading && rows.length > 0 && <MiningPricesTable rows={rows} />}
 
       {!loading && fetchedAt && rows.length === 0 && !error && (
-        <div className="text-center text-sm text-zinc-500">No harvestable types found.</div>
+        <div className="text-center text-sm text-zinc-500">No mining types found.</div>
       )}
     </Layout>
   );

@@ -10,7 +10,7 @@
 // they download their own copy of the zip.
 
 import { generate as generateBlueprintData } from "./generate-blueprint-data.mjs";
-import { generate as generateHarvestableData } from "./generate-harvestable-data.mjs";
+import { generate as generateMiningData } from "./generate-mining-data.mjs";
 import { generate as generateNpcCorporations } from "./generate-npc-corporations.mjs";
 import { generate as generateRegionData } from "./generate-region-data.mjs";
 import { downloadSdeZip } from "./sde.mjs";
@@ -21,7 +21,7 @@ async function main() {
   await generateNpcCorporations(zipBuffer);
   await generateBlueprintData(zipBuffer);
   await generateRegionData(zipBuffer);
-  await generateHarvestableData(zipBuffer);
+  await generateMiningData(zipBuffer);
 }
 
 main().catch((err) => {
