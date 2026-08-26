@@ -1,8 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Layout from "../components/layout.tsx";
 import MarketOpportunitiesTable from "../components/marketOpportunitiesTable.tsx";
-import type { MarketOpportunityRow } from "../esi/marketOpportunities.ts";
-import { fetchMarketOpportunities } from "../esi/marketOpportunities.ts";
+import type { RawMarketOpportunity } from "../esi/marketOpportunities.ts";
+import {
+  ACCOUNTING_TAX_RATES,
+  computeMarketOpportunityRows,
+  DEFAULT_ACCOUNTING_SKILL_LEVEL,
+  fetchRawMarketOpportunities,
+} from "../esi/marketOpportunities.ts";
 import { DEFAULT_REGION_ID, getRegions } from "../esi/regions.ts";
 import { numberSearchParam, useSearchParamState } from "../hooks/useSearchParamState.ts";
 
@@ -56,6 +61,40 @@ function RegionSelect({
   );
 }
 
+function TaxSelect({
+  skillLevel,
+  setSkillLevel,
+  disabled,
+}: {
+  skillLevel: number;
+  setSkillLevel: (level: number) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div>
+      <label
+        htmlFor="market-opportunities-tax"
+        className="mb-1 block text-sm font-medium text-zinc-400"
+      >
+        Accounting skill
+      </label>
+      <select
+        id="market-opportunities-tax"
+        value={skillLevel}
+        onChange={(e) => setSkillLevel(Number(e.target.value))}
+        disabled={disabled}
+        className="w-64 rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {ACCOUNTING_TAX_RATES.map((rate, level) => (
+          <option key={level} value={level}>
+            Level {level} ({(rate * 100).toFixed(2)}% tax)
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export default function MarketOpportunitiesPage() {
   const regions = getRegions();
   const regionParam = makeRegionParam(regions);
@@ -71,23 +110,34 @@ export default function MarketOpportunitiesPage() {
     regionParam,
   );
 
-  const [rows, setRows] = useState<MarketOpportunityRow[]>([]);
+  const [rawOpportunities, setRawOpportunities] = useState<RawMarketOpportunity[]>([]);
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
   const [loading, setLoading] = useState(false);
   const [stage, setStage] = useState<{ label: string; done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [accountingSkillLevel, setAccountingSkillLevel] = useState(DEFAULT_ACCOUNTING_SKILL_LEVEL);
+
+  const rows = useMemo(
+    () =>
+      computeMarketOpportunityRows(
+        rawOpportunities,
+        ACCOUNTING_TAX_RATES[accountingSkillLevel] ??
+          ACCOUNTING_TAX_RATES[DEFAULT_ACCOUNTING_SKILL_LEVEL]!,
+      ),
+    [rawOpportunities, accountingSkillLevel],
+  );
 
   const loadOpportunities = async (region1: number, region2: number) => {
     setLoading(true);
     setStage(null);
     setError(null);
-    setRows([]);
+    setRawOpportunities([]);
     setFetchedAt(null);
     try {
-      const data = await fetchMarketOpportunities([region1, region2], (label, done, total) =>
+      const data = await fetchRawMarketOpportunities([region1, region2], (label, done, total) =>
         setStage({ label, done, total }),
       );
-      setRows(data);
+      setRawOpportunities(data);
       setFetchedAt(new Date());
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Unknown error");
@@ -137,6 +187,11 @@ export default function MarketOpportunitiesPage() {
             regions={regions}
             regionId={region2Id}
             setRegionId={setRegion2Id}
+            disabled={loading}
+          />
+          <TaxSelect
+            skillLevel={accountingSkillLevel}
+            setSkillLevel={setAccountingSkillLevel}
             disabled={loading}
           />
           <button

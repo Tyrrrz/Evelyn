@@ -37,6 +37,14 @@ function locationLabel(location: MarketLocation): string {
   return location.name ?? `Structure #${location.locationId}`;
 }
 
+/** Tailwind text color class for a system's security status: high sec green, low sec yellow, null sec dark purple. */
+function securityColorClass(securityStatus: number): string {
+  const rounded = Math.round(securityStatus * 10) / 10;
+  if (rounded >= 0.5) return "text-emerald-400";
+  if (rounded > 0) return "text-yellow-400";
+  return "text-purple-700";
+}
+
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   if (!active) return <span className="ml-1 opacity-30">↕</span>;
   return <span className="ml-1">{dir === "asc" ? "↑" : "↓"}</span>;
@@ -86,9 +94,22 @@ function LocationCell({ location }: { location: MarketLocation }) {
             title="Player-owned structure — may require docking access"
           />
         )}
-        <span>{locationLabel(location)}</span>
+        <span className={securityColorClass(location.securityStatus)}>
+          {locationLabel(location)}
+        </span>
       </div>
     </td>
+  );
+}
+
+function NpcTag() {
+  return (
+    <span
+      className="ml-1 rounded border border-zinc-600 px-1 text-[10px] font-semibold text-zinc-400 uppercase"
+      title="NPC-seeded order"
+    >
+      NPC
+    </span>
   );
 }
 
@@ -155,9 +176,14 @@ export default function MarketOpportunitiesTable({ rows }: { rows: MarketOpportu
               <td className="px-3 py-2 tabular-nums">{row.jumps}</td>
               <td className="px-3 py-2 tabular-nums">
                 {formatIsk(row.sellPrice)}
-                <div className="text-xs text-zinc-500">×{fmt(row.quantity)}</div>
+                {row.sellIsNpc && <NpcTag />}
+                <div className="text-xs text-zinc-500">× {fmt(row.quantity)}</div>
               </td>
-              <td className="px-3 py-2 tabular-nums">{formatIsk(row.buyPrice)}</td>
+              <td className="px-3 py-2 tabular-nums">
+                {formatIsk(row.buyPrice)}
+                {row.buyIsNpc && <NpcTag />}
+                <div className="text-xs text-zinc-500">× {fmt(row.quantity)}</div>
+              </td>
               <td className="px-3 py-2 tabular-nums">
                 <div className="font-semibold text-emerald-400">{formatIsk(row.profitTotal)}</div>
                 <div className="text-xs text-zinc-500">

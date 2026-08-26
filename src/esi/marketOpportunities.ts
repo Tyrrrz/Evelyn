@@ -2,8 +2,10 @@ import type { MarketOrder } from "./client.ts";
 import {
   getAllMarketOrders,
   getRouteJumps,
+  getSystemSecurityBatch,
   getTypeInfoBatch,
   getTypeVolumeBatch,
+  isNpcOrder,
   isPlayerStructure,
   resolveStationNames,
 } from "./client.ts";
@@ -15,6 +17,7 @@ export interface MarketLocation {
   /** `null` for player-owned structures, whose names ESI won't resolve without a docking token. */
   name: string | null;
   isPlayerStructure: boolean;
+  securityStatus: number;
 }
 
 export interface MarketOpportunityRow {
@@ -27,12 +30,28 @@ export interface MarketOpportunityRow {
   quantity: number;
   /** Weighted-average price actually paid across the matched sell orders. */
   sellPrice: number;
+  /** Whether (any of) the matched sell orders were NPC-seeded rather than player-placed. */
+  sellIsNpc: boolean;
   /** Weighted-average price actually received across the matched buy orders. */
   buyPrice: number;
+  /** Whether (any of) the matched buy orders were NPC-seeded rather than player-placed. */
+  buyIsNpc: boolean;
+  /** Profit after sales tax is deducted from the buy-side (destination) proceeds. */
   profitTotal: number;
   profitPerJump: number;
   profitPerM3: number | null;
 }
+
+/**
+ * Sales tax rates by Accounting skill level (0-5), deducted from the proceeds of selling into a
+ * buy order (or having a sell order filled). Level 5 (the maximum) is assumed by default.
+ */
+export const ACCOUNTING_TAX_RATES = [0.075, 0.0668, 0.0585, 0.0503, 0.042, 0.0337] as const;
+
+export const DEFAULT_ACCOUNTING_SKILL_LEVEL = 5;
+
+/** Opportunities whose after-tax profit is this fraction (or less) of the sell price are noise. */
+const MIN_PROFIT_TO_SELL_PRICE_RATIO = 0.1;
 
 /** Orders within this fraction of a price band's anchor price are considered the same "stock level". */
 const STOCK_PRICE_DEVIATION = 0.05;
@@ -42,7 +61,7 @@ interface StockLevel {
   locationId: number;
   systemId: number;
   /** Underlying orders that make up this level, cheapest-to-take-first for sell / best-for-seller-first for buy. */
-  orders: { price: number; quantity: number }[];
+  orders: { price: number; quantity: number; isNpc: boolean }[];
   totalQuantity: number;
 }
 
@@ -84,7 +103,11 @@ function buildStockLevels(orders: MarketOrder[], isBuySide: boolean): StockLevel
       levels.push({
         locationId,
         systemId: bandOrders[0]!.system_id,
-        orders: bandOrders.map((o) => ({ price: o.price, quantity: o.volume_remain })),
+        orders: bandOrders.map((o) => ({
+          price: o.price,
+          quantity: o.volume_remain,
+          isNpc: isNpcOrder(o),
+        })),
         totalQuantity: bandOrders.reduce((s, o) => s + o.volume_remain, 0),
       });
     }
@@ -95,21 +118,27 @@ function buildStockLevels(orders: MarketOrder[], isBuySide: boolean): StockLevel
 
 /**
  * Consumes up to `quantity` units from a stock level's constituent orders (in the order they're
- * listed — already best-price-first) and returns the quantity actually taken and the total ISK
- * involved (summed per-order price, not the level's average).
+ * listed — already best-price-first) and returns the quantity actually taken, the total ISK
+ * involved (summed per-order price, not the level's average), and whether any consumed order was
+ * NPC-seeded.
  */
-function takeFromLevel(level: StockLevel, quantity: number): { quantity: number; total: number } {
+function takeFromLevel(
+  level: StockLevel,
+  quantity: number,
+): { quantity: number; total: number; isNpc: boolean } {
   let remaining = quantity;
   let total = 0;
   let taken = 0;
+  let isNpc = false;
   for (const order of level.orders) {
     if (remaining <= 0) break;
     const take = Math.min(order.quantity, remaining);
+    if (take > 0 && order.isNpc) isNpc = true;
     total += take * order.price;
     taken += take;
     remaining -= take;
   }
-  return { quantity: taken, total };
+  return { quantity: taken, total, isNpc };
 }
 
 /** Builds every profitable (sell level, buy level) pairing for a single item type. */
@@ -123,8 +152,9 @@ function buildOpportunities(
   destination: { locationId: number; systemId: number };
   quantity: number;
   sellPrice: number;
+  sellIsNpc: boolean;
   buyPrice: number;
-  profitTotal: number;
+  buyIsNpc: boolean;
 }[] {
   const results: {
     typeId: number;
@@ -132,8 +162,9 @@ function buildOpportunities(
     destination: { locationId: number; systemId: number };
     quantity: number;
     sellPrice: number;
+    sellIsNpc: boolean;
     buyPrice: number;
-    profitTotal: number;
+    buyIsNpc: boolean;
   }[] = [];
 
   for (const sellLevel of sellLevels) {
@@ -158,8 +189,9 @@ function buildOpportunities(
       const matchedQuantity = Math.min(bought.quantity, sold.quantity);
       if (matchedQuantity <= 0) continue;
 
-      const profitTotal = sold.total - bought.total;
-      if (profitTotal <= 0) continue;
+      // Pre-tax profit is a cheap necessary (but not sufficient) condition for post-tax
+      // profitability; the definitive after-tax filtering happens in computeMarketOpportunityRows.
+      if (sold.total - bought.total <= 0) continue;
 
       results.push({
         typeId,
@@ -167,8 +199,9 @@ function buildOpportunities(
         destination: { locationId: buyLevel.locationId, systemId: buyLevel.systemId },
         quantity: matchedQuantity,
         sellPrice: bought.total / matchedQuantity,
+        sellIsNpc: bought.isNpc,
         buyPrice: sold.total / matchedQuantity,
-        profitTotal,
+        buyIsNpc: sold.isNpc,
       });
     }
   }
@@ -176,17 +209,33 @@ function buildOpportunities(
   return results;
 }
 
+/** Intermediate result of a region scan, before sales tax is applied and rows are finalized. */
+export interface RawMarketOpportunity {
+  typeId: number;
+  typeName: string;
+  origin: MarketLocation;
+  destination: MarketLocation;
+  jumps: number;
+  quantity: number;
+  sellPrice: number;
+  sellIsNpc: boolean;
+  buyPrice: number;
+  buyIsNpc: boolean;
+  volume: number;
+}
+
 /**
- * Finds profitable "buy low here, sell high there" opportunities across one or two regions: items
- * that can be bought from sell orders in one place and sold back to buy orders in another (in the
- * same region or a different one), taking into account that stock at nearly the same price (within
- * 5%) should be treated as a single tradeable level, while profit is still computed off each
- * order's own price rather than a blended average.
+ * Finds every "buy low here, sell high there" candidate across one or two regions: items that can
+ * be bought from sell orders in one place and sold back to buy orders in another (in the same
+ * region or a different one), taking into account that stock at nearly the same price (within 5%)
+ * should be treated as a single tradeable level, while profit is still computed off each order's
+ * own price rather than a blended average. Sales tax is not applied yet — see
+ * {@link computeMarketOpportunityRows} for the final, tax-aware, deduplicated row list.
  */
-export async function fetchMarketOpportunities(
+export async function fetchRawMarketOpportunities(
   regionIds: number[],
   onProgress?: (stage: string, done: number, total: number) => void,
-): Promise<MarketOpportunityRow[]> {
+): Promise<RawMarketOpportunity[]> {
   const uniqueRegionIds = [...new Set(regionIds)];
 
   onProgress?.("Fetching market orders", 0, uniqueRegionIds.length);
@@ -213,8 +262,9 @@ export async function fetchMarketOpportunities(
     destination: { locationId: number; systemId: number };
     quantity: number;
     sellPrice: number;
+    sellIsNpc: boolean;
     buyPrice: number;
-    profitTotal: number;
+    buyIsNpc: boolean;
   }[] = [];
   let done = 0;
   for (const [typeId, orders] of ordersByType) {
@@ -266,8 +316,12 @@ export async function fetchMarketOpportunities(
     onProgress?.("Resolving stations & routes", routesDone, systemPairs.length);
   }
 
-  const volumesByType = await getTypeVolumeBatch([
-    ...new Set(rawOpportunities.map((o) => o.typeId)),
+  const systemIds = [
+    ...new Set(rawOpportunities.flatMap((o) => [o.origin.systemId, o.destination.systemId])),
+  ];
+  const [volumesByType, securityBySystem] = await Promise.all([
+    getTypeVolumeBatch([...new Set(rawOpportunities.map((o) => o.typeId))]),
+    getSystemSecurityBatch(systemIds),
   ]);
 
   const toLocation = (locationId: number, systemId: number): MarketLocation => ({
@@ -275,6 +329,7 @@ export async function fetchMarketOpportunities(
     systemId,
     isPlayerStructure: isPlayerStructure(locationId),
     name: stationNames.get(locationId) ?? null,
+    securityStatus: securityBySystem.get(systemId) ?? 0,
   });
 
   return rawOpportunities.map((o) => {
@@ -288,10 +343,64 @@ export async function fetchMarketOpportunities(
       jumps,
       quantity: o.quantity,
       sellPrice: o.sellPrice,
+      sellIsNpc: o.sellIsNpc,
       buyPrice: o.buyPrice,
-      profitTotal: o.profitTotal,
-      profitPerJump: o.profitTotal / (jumps + 1),
-      profitPerM3: volume > 0 ? o.profitTotal / (volume * o.quantity) : null,
-    } satisfies MarketOpportunityRow;
+      buyIsNpc: o.buyIsNpc,
+      volume,
+    } satisfies RawMarketOpportunity;
   });
+}
+
+/**
+ * Applies sales tax to raw opportunities, filters out ones that aren't (meaningfully) profitable
+ * after tax, keeps only the single best opportunity per item, and sorts the result by profit. Pure
+ * and synchronous — safe to recompute on every render when only the tax rate changes, without
+ * re-fetching from ESI.
+ */
+export function computeMarketOpportunityRows(
+  raw: RawMarketOpportunity[],
+  taxRate: number,
+): MarketOpportunityRow[] {
+  const rows: MarketOpportunityRow[] = [];
+
+  for (const o of raw) {
+    const sellTotal = o.sellPrice * o.quantity;
+    const buyTotal = o.buyPrice * o.quantity;
+    const profitTotal = buyTotal * (1 - taxRate) - sellTotal;
+    if (profitTotal <= 0) continue;
+    if (profitTotal <= MIN_PROFIT_TO_SELL_PRICE_RATIO * sellTotal) continue;
+
+    rows.push({
+      typeId: o.typeId,
+      typeName: o.typeName,
+      origin: o.origin,
+      destination: o.destination,
+      jumps: o.jumps,
+      quantity: o.quantity,
+      sellPrice: o.sellPrice,
+      sellIsNpc: o.sellIsNpc,
+      buyPrice: o.buyPrice,
+      buyIsNpc: o.buyIsNpc,
+      profitTotal,
+      profitPerJump: profitTotal / (o.jumps + 1),
+      profitPerM3: o.volume > 0 ? profitTotal / (o.volume * o.quantity) : null,
+    });
+  }
+
+  const bestByType = new Map<number, MarketOpportunityRow>();
+  for (const row of rows) {
+    const best = bestByType.get(row.typeId);
+    if (!best || compareOpportunityRows(row, best) < 0) bestByType.set(row.typeId, row);
+  }
+
+  return [...bestByType.values()].sort(compareOpportunityRows);
+}
+
+/** Orders rows by profit total, then profit per jump, then profit per m³ (all descending). */
+function compareOpportunityRows(a: MarketOpportunityRow, b: MarketOpportunityRow): number {
+  if (a.profitTotal !== b.profitTotal) return b.profitTotal - a.profitTotal;
+  if (a.profitPerJump !== b.profitPerJump) return b.profitPerJump - a.profitPerJump;
+  const aPerM3 = a.profitPerM3 ?? -Infinity;
+  const bPerM3 = b.profitPerM3 ?? -Infinity;
+  return bPerM3 - aPerM3;
 }

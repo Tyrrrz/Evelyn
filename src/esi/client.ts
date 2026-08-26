@@ -66,6 +66,12 @@ export interface MarketOrder {
   is_buy_order: boolean;
   system_id: number;
   location_id: number;
+  /**
+   * Order validity period in days. Player orders are capped at 90 days; NPC-seeded orders (found
+   * at NPC stations) are set far beyond that — typically 364-365 days — so this is used to tell
+   * them apart (see {@link isNpcOrder}).
+   */
+  duration: number;
 }
 
 export interface MarketHistoryEntry {
@@ -291,6 +297,44 @@ export async function getTypeVolumeBatch(typeIds: number[]): Promise<Map<number,
       const volume = t.packaged_volume ?? t.volume ?? 0;
       typeVolumeCache.set(typeId, volume);
       result.set(typeId, volume);
+    }),
+  );
+
+  return result;
+}
+
+/** Max duration (in days) an order placed by a player character can have. */
+const MAX_PLAYER_ORDER_DURATION_DAYS = 90;
+
+/**
+ * Whether a market order was seeded by an NPC corporation rather than placed by a player: NPC
+ * orders (found at NPC stations) are set to expire far beyond the 90-day cap that applies to
+ * player orders — typically 364-365 days out.
+ */
+export function isNpcOrder(order: MarketOrder): boolean {
+  return order.duration > MAX_PLAYER_ORDER_DURATION_DAYS;
+}
+
+/** Long-lived in-memory cache for solar system security status (doesn't change at runtime). */
+const systemSecurityCache = new Map<number, number>();
+
+/** Fetches the security status for a batch of solar systems. */
+export async function getSystemSecurityBatch(systemIds: number[]): Promise<Map<number, number>> {
+  const unique = [...new Set(systemIds)];
+  const result = new Map<number, number>();
+
+  await Promise.all(
+    unique.map(async (systemId) => {
+      const cached = systemSecurityCache.get(systemId);
+      if (cached !== undefined) {
+        result.set(systemId, cached);
+        return;
+      }
+      const s = await withRateLimitRetry(() =>
+        esiGet<{ security_status: number }>(`/universe/systems/${systemId}/`, true),
+      );
+      systemSecurityCache.set(systemId, s.security_status);
+      result.set(systemId, s.security_status);
     }),
   );
 
