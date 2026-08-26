@@ -18,6 +18,14 @@ export async function downloadSdeZip() {
   return new Uint8Array(await res.arrayBuffer());
 }
 
+/** Whether `moduleUrl` (an `import.meta.url`) refers to the script that was run directly from
+ * the CLI, as opposed to one that was merely `import`-ed by another script. Generator scripts
+ * use this to only download the SDE zip themselves when run standalone; when orchestrated by
+ * generate-data.mjs, they instead reuse the single zip it already downloaded. */
+export function isMainModule(moduleUrl) {
+  return moduleUrl === `file://${process.argv[1]}`;
+}
+
 /**
  * Extracts and parses a single YAML file from the SDE zip, trying each of `candidatePaths` in
  * order until one is found. Throws a descriptive error (listing any similarly-named entries

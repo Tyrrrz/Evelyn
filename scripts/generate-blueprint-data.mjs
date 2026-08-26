@@ -17,13 +17,11 @@
 
 import { writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { downloadSdeZip, extractYamlFile } from "./sde.mjs";
+import { downloadSdeZip, extractYamlFile, isMainModule } from "./sde.mjs";
 
 const OUTPUT_PATH = fileURLToPath(new URL("../src/esi/blueprintData.json", import.meta.url));
 
-async function main() {
-  const zipBuffer = await downloadSdeZip();
-
+export async function generate(zipBuffer) {
   // CCP dropped the `fsd/` directory prefix in a later SDE rework, so the current layout has
   // this file at the zip root; the prefixed path is kept as a fallback for older zips.
   const blueprints = extractYamlFile(zipBuffer, ["blueprints.yaml", "fsd/blueprints.yaml"]);
@@ -53,7 +51,13 @@ async function main() {
   console.log(`Wrote ${Object.keys(sortedData).length} blueprint recipes to ${OUTPUT_PATH}`);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exitCode = 1;
-});
+async function main() {
+  await generate(await downloadSdeZip());
+}
+
+if (isMainModule(import.meta.url)) {
+  main().catch((err) => {
+    console.error(err);
+    process.exitCode = 1;
+  });
+}

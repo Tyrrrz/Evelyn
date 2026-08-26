@@ -17,7 +17,7 @@
 
 import { writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { downloadSdeZip, extractYamlFile } from "./sde.mjs";
+import { downloadSdeZip, extractYamlFile, isMainModule } from "./sde.mjs";
 
 const OUTPUT_PATH = fileURLToPath(new URL("../src/esi/regionData.json", import.meta.url));
 
@@ -26,9 +26,7 @@ const OUTPUT_PATH = fileURLToPath(new URL("../src/esi/regionData.json", import.m
 // for a price-check region selector.
 const WORMHOLE_REGION_NAME = /^[A-Z]-R\d+$/;
 
-async function main() {
-  const zipBuffer = await downloadSdeZip();
-
+export async function generate(zipBuffer) {
   // CCP dropped the `fsd/` directory prefix in a later SDE rework, so the current layout has
   // this file at the zip root; the prefixed path is kept as a fallback for older zips.
   const regions = extractYamlFile(zipBuffer, ["mapRegions.yaml", "fsd/mapRegions.yaml"]);
@@ -50,7 +48,13 @@ async function main() {
   console.log(`Wrote ${data.length} regions to ${OUTPUT_PATH}`);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exitCode = 1;
-});
+async function main() {
+  await generate(await downloadSdeZip());
+}
+
+if (isMainModule(import.meta.url)) {
+  main().catch((err) => {
+    console.error(err);
+    process.exitCode = 1;
+  });
+}

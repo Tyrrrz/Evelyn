@@ -18,7 +18,7 @@
 
 import { writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { downloadSdeZip, extractYamlFile } from "./sde.mjs";
+import { downloadSdeZip, extractYamlFile, isMainModule } from "./sde.mjs";
 
 const OUTPUT_PATH = fileURLToPath(new URL("../src/esi/harvestableData.json", import.meta.url));
 
@@ -81,12 +81,11 @@ function collectSubtreeIds(rootId, childrenByParentId) {
   return ids;
 }
 
-async function main() {
-  const zipBuffer = await downloadSdeZip();
-
+export async function generate(zipBuffer) {
   // CCP dropped the `fsd/` directory prefix in a later SDE rework, and renamed some files along
-  // the way; older candidate paths/names are kept as fallbacks for older zips.
-  const rawTypes = extractYamlFile(zipBuffer, ["typeIDs.yaml", "fsd/typeIDs.yaml"]);
+  // the way (e.g. `typeIDs.yaml` -> `types.yaml`); older candidate paths/names are kept as
+  // fallbacks for older zips.
+  const rawTypes = extractYamlFile(zipBuffer, ["types.yaml", "typeIDs.yaml", "fsd/typeIDs.yaml"]);
   const rawMarketGroups = extractYamlFile(zipBuffer, [
     "marketGroups.yaml",
     "fsd/marketGroups.yaml",
@@ -129,7 +128,13 @@ async function main() {
   console.log(`Wrote ${data.length} harvestable types to ${OUTPUT_PATH}`);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exitCode = 1;
-});
+async function main() {
+  await generate(await downloadSdeZip());
+}
+
+if (isMainModule(import.meta.url)) {
+  main().catch((err) => {
+    console.error(err);
+    process.exitCode = 1;
+  });
+}
