@@ -22,63 +22,66 @@ import { downloadSdeZip, extractYamlFile, isMainModule } from "./sde.mjs";
 
 const OUTPUT_PATH = fileURLToPath(new URL("../src/esi/harvestableData.json", import.meta.url));
 
-/**
- * In-game market groups are organized as a tree (e.g. Market > Ore > Compressed Ore > Compressed
- * Veldspar), and their names are far more stable across SDE reworks than their numeric IDs, so
- * each top-level category is located by matching the name of one of its market group's own
- * roots rather than by hardcoding a market group ID.
- */
-const ROOT_MARKET_GROUP_NAMES = {
-  ore: ["Ore"],
-  gas: ["Gas", "Gas Clouds"],
-  ice: ["Ice", "Ice Ores"],
-};
+// Ore, ice and gas types are identified by their intrinsic item category/group (not by their
+// position in the in-game market UI's group tree, which CCP reorganizes more often and whose
+// group names are less reliably stable). All mineable asteroids (ore and ice) share the
+// "Asteroid" category, with ice being the single group named "Ice" within it; every harvestable
+// gas type lives in the single group named "Harvestable Cloud".
+const ASTEROID_CATEGORY_NAMES = ["Asteroid"];
+const ICE_GROUP_NAMES = ["Ice"];
+const GAS_GROUP_NAMES = ["Harvestable Cloud"];
 
-/** Normalizes a market-group (or type) SDE record into a plain `{ id, name, parentId }` shape,
- * tolerating both the current dict-keyed FSD layout (id as key, inline `name.en`) and the older
- * flat-list bsd layout (id/name/parentId as its own fields on each record). */
-function normalizeMarketGroups(raw) {
-  const records = Array.isArray(raw)
+/** Normalizes a dict-keyed-by-ID SDE record collection (categories, groups or types) into a
+ * plain array, tolerating both the current dict-keyed FSD layout (id as key, inline `name.en`)
+ * and the older flat-list bsd layout (id/name as their own fields on each record). */
+function normalizeRecords(raw, idField) {
+  return Array.isArray(raw)
     ? raw
-    : Object.entries(raw).map(([id, r]) => ({
-        ...r,
-        marketGroupID: r.marketGroupID ?? Number(id),
-      }));
+    : Object.entries(raw).map(([id, r]) => ({ ...r, [idField]: r[idField] ?? Number(id) }));
+}
 
-  return records.map((r) => ({
-    id: r.marketGroupID,
-    name: r.name?.en ?? r.marketGroupName,
-    parentId: r.parentGroupID ?? null,
+function normalizeCategories(raw) {
+  return normalizeRecords(raw, "categoryID").map((r) => ({
+    id: r.categoryID,
+    name: r.name?.en ?? r.categoryName,
+  }));
+}
+
+function normalizeGroups(raw) {
+  return normalizeRecords(raw, "groupID").map((r) => ({
+    id: r.groupID,
+    name: r.name?.en ?? r.groupName,
+    categoryId: r.categoryID ?? null,
   }));
 }
 
 function normalizeTypes(raw) {
-  const records = Array.isArray(raw)
-    ? raw
-    : Object.entries(raw).map(([id, r]) => ({ ...r, typeID: r.typeID ?? Number(id) }));
-
-  return records.map((r) => ({
+  return normalizeRecords(raw, "typeID").map((r) => ({
     id: r.typeID,
     name: r.name?.en ?? r.typeName,
-    marketGroupId: r.marketGroupID ?? null,
+    groupId: r.groupID ?? null,
     volume: r.volume,
     published: r.published,
   }));
 }
 
-/** Collects the given market group's ID plus the IDs of all of its descendants. */
-function collectSubtreeIds(rootId, childrenByParentId) {
-  const ids = new Set([rootId]);
-  const stack = [rootId];
-  while (stack.length > 0) {
-    const id = stack.pop();
-    for (const child of childrenByParentId.get(id) ?? []) {
-      if (ids.has(child.id)) continue;
-      ids.add(child.id);
-      stack.push(child.id);
-    }
+/** Finds the single record whose name matches one of `candidateNames`, throwing a descriptive
+ * error (so CCP renames are easy to diagnose) if none or more than one match is found. */
+function findByName(records, candidateNames, description) {
+  const matches = records.filter((r) => candidateNames.includes(r.name));
+  if (matches.length === 0) {
+    throw new Error(
+      `Could not find ${description} named one of [${candidateNames.join(", ")}]. ` +
+        `CCP may have renamed it again.`,
+    );
   }
-  return ids;
+  if (matches.length > 1) {
+    throw new Error(
+      `Found more than one ${description} named one of [${candidateNames.join(", ")}]: ` +
+        `${matches.map((m) => m.id).join(", ")}. CCP may have introduced a naming collision.`,
+    );
+  }
+  return matches[0];
 }
 
 export async function generate(zipBuffer) {
@@ -86,34 +89,41 @@ export async function generate(zipBuffer) {
   // the way (e.g. `typeIDs.yaml` -> `types.yaml`); older candidate paths/names are kept as
   // fallbacks for older zips.
   const rawTypes = extractYamlFile(zipBuffer, ["types.yaml", "typeIDs.yaml", "fsd/typeIDs.yaml"]);
-  const rawMarketGroups = extractYamlFile(zipBuffer, [
-    "marketGroups.yaml",
-    "fsd/marketGroups.yaml",
-    "bsd/invMarketGroups.yaml",
+  const rawGroups = extractYamlFile(zipBuffer, [
+    "groups.yaml",
+    "groupIDs.yaml",
+    "fsd/groupIDs.yaml",
+  ]);
+  const rawCategories = extractYamlFile(zipBuffer, [
+    "categories.yaml",
+    "categoryIDs.yaml",
+    "fsd/categoryIDs.yaml",
   ]);
 
-  const marketGroups = normalizeMarketGroups(rawMarketGroups);
   const types = normalizeTypes(rawTypes);
+  const groups = normalizeGroups(rawGroups);
+  const categories = normalizeCategories(rawCategories);
 
-  const childrenByParentId = new Map();
-  for (const g of marketGroups) {
-    if (!childrenByParentId.has(g.parentId)) childrenByParentId.set(g.parentId, []);
-    childrenByParentId.get(g.parentId).push(g);
-  }
+  const asteroidCategory = findByName(categories, ASTEROID_CATEGORY_NAMES, "an asteroid category");
+  const iceGroup = findByName(groups, ICE_GROUP_NAMES, "an ice group");
+  const gasGroup = findByName(groups, GAS_GROUP_NAMES, "a harvestable gas group");
+
+  const oreGroupIds = new Set(
+    groups
+      .filter((g) => g.categoryId === asteroidCategory.id && g.id !== iceGroup.id)
+      .map((g) => g.id),
+  );
+
+  const groupIdsByCategory = {
+    ore: oreGroupIds,
+    ice: new Set([iceGroup.id]),
+    gas: new Set([gasGroup.id]),
+  };
 
   const data = [];
-  for (const [category, candidateNames] of Object.entries(ROOT_MARKET_GROUP_NAMES)) {
-    const root = marketGroups.find((g) => candidateNames.includes(g.name));
-    if (!root) {
-      throw new Error(
-        `Could not find a root market group named one of [${candidateNames.join(", ")}] for ` +
-          `category "${category}". CCP may have renamed it again.`,
-      );
-    }
-
-    const subtreeIds = collectSubtreeIds(root.id, childrenByParentId);
+  for (const [category, groupIds] of Object.entries(groupIdsByCategory)) {
     const categoryTypes = types.filter(
-      (t) => t.published && t.marketGroupId !== null && subtreeIds.has(t.marketGroupId),
+      (t) => t.published && t.groupId !== null && groupIds.has(t.groupId),
     );
 
     for (const t of categoryTypes) {
