@@ -56,12 +56,6 @@ export interface SalesTaxLevel {
   taxRate: number;
 }
 
-/** Converts a skill level (0–5) to its Roman numeral label, with 0 as a special case. */
-export function toAccountingNumeral(level: number): string {
-  if (level === 0) return "0";
-  return ["", "I", "II", "III", "IV", "V"][level] ?? String(level);
-}
-
 export const SALES_TAX_LEVELS: SalesTaxLevel[] = [
   { level: 0, taxRate: 0.075 },
   { level: 1, taxRate: 0.0668 },

@@ -21,3 +21,34 @@ export function fmt(n: number | null | undefined): string {
 export function fmtDecimal(n: number): string {
   return trimTrailingZeroDecimal(n.toFixed(1));
 }
+
+const ROMAN_NUMERALS: [number, string][] = [
+  [1000, "M"],
+  [900, "CM"],
+  [500, "D"],
+  [400, "CD"],
+  [100, "C"],
+  [90, "XC"],
+  [50, "L"],
+  [40, "XL"],
+  [10, "X"],
+  [9, "IX"],
+  [5, "V"],
+  [4, "IV"],
+  [1, "I"],
+];
+
+/** Converts a non-negative integer to a Roman numeral, special-casing 0 (which has no Roman numeral). */
+export function toRomanNumeral(n: number): string {
+  if (n === 0) return "0";
+
+  let remaining = n;
+  let result = "";
+  for (const [value, numeral] of ROMAN_NUMERALS) {
+    while (remaining >= value) {
+      result += numeral;
+      remaining -= value;
+    }
+  }
+  return result;
+}
