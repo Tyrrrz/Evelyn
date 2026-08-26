@@ -8,7 +8,7 @@ import { numberSearchParam, useSearchParamState } from "../hooks/useSearchParamS
 
 function makeRegionParam(regions: { regionId: number }[]) {
   return {
-    ...numberSearchParam,
+    serialize: (value: number | null) => (value === null ? undefined : String(value)),
     deserialize: (raw: string) => {
       const parsed = numberSearchParam.deserialize?.(raw);
       return parsed !== undefined && regions.some((r) => r.regionId === parsed)
@@ -28,8 +28,8 @@ function RegionSelect({
 }: {
   label: string;
   regions: { regionId: number; name: string }[];
-  regionId: number;
-  setRegionId: (id: number) => void;
+  regionId: number | null;
+  setRegionId: (id: number | null) => void;
   disabled: boolean;
   id: string;
 }) {
@@ -40,11 +40,12 @@ function RegionSelect({
       </label>
       <select
         id={id}
-        value={regionId}
-        onChange={(e) => setRegionId(Number(e.target.value))}
+        value={regionId ?? ""}
+        onChange={(e) => setRegionId(e.target.value ? Number(e.target.value) : null)}
         disabled={disabled}
         className="w-64 rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
       >
+        <option value="">Select a region…</option>
         {regions.map((r) => (
           <option key={r.regionId} value={r.regionId}>
             {r.name}
@@ -59,14 +60,14 @@ export default function MarketOpportunitiesPage() {
   const regions = getRegions();
   const regionParam = makeRegionParam(regions);
 
-  const [originRegionId, setOriginRegionId] = useSearchParamState<number>(
-    "origin",
+  const [region1Id, setRegion1Id] = useSearchParamState<number | null>(
+    "region1",
     DEFAULT_REGION_ID,
     regionParam,
   );
-  const [destinationRegionId, setDestinationRegionId] = useSearchParamState<number>(
-    "destination",
-    DEFAULT_REGION_ID,
+  const [region2Id, setRegion2Id] = useSearchParamState<number | null>(
+    "region2",
+    null,
     regionParam,
   );
 
@@ -76,16 +77,15 @@ export default function MarketOpportunitiesPage() {
   const [stage, setStage] = useState<{ label: string; done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const loadOpportunities = async (originRegion: number, destinationRegion: number) => {
+  const loadOpportunities = async (region1: number, region2: number) => {
     setLoading(true);
     setStage(null);
     setError(null);
     setRows([]);
     setFetchedAt(null);
     try {
-      const data = await fetchMarketOpportunities(
-        [originRegion, destinationRegion],
-        (label, done, total) => setStage({ label, done, total }),
+      const data = await fetchMarketOpportunities([region1, region2], (label, done, total) =>
+        setStage({ label, done, total }),
       );
       setRows(data);
       setFetchedAt(new Date());
@@ -97,14 +97,22 @@ export default function MarketOpportunitiesPage() {
     }
   };
 
-  const handleSearch = () => void loadOpportunities(originRegionId, destinationRegionId);
+  const canSearch = region1Id !== null && region2Id !== null;
+  const handleSearch = () => {
+    if (region1Id === null || region2Id === null) return;
+    void loadOpportunities(region1Id, region2Id);
+  };
 
-  // Load opportunities for the default (or shared-link) regions as soon as the page opens.
+  // Only auto-search on page load if both regions were explicitly set (e.g. from a shared link) —
+  // otherwise wait for the user to pick a second region and search explicitly.
   const didAutoSearch = useRef(false);
   useEffect(() => {
     if (didAutoSearch.current) return;
     didAutoSearch.current = true;
-    void loadOpportunities(originRegionId, destinationRegionId);
+    if (region1Id !== null && region2Id !== null) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time auto-search guarded by didAutoSearch, not reactive to state changes
+      void loadOpportunities(region1Id, region2Id);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -116,30 +124,30 @@ export default function MarketOpportunitiesPage() {
       <div className="mb-4 flex flex-col items-center gap-2">
         <div className="flex flex-wrap items-end justify-center gap-2">
           <RegionSelect
-            id="market-opportunities-origin-region"
-            label="Origin Region"
+            id="market-opportunities-region1"
+            label="Region 1"
             regions={regions}
-            regionId={originRegionId}
-            setRegionId={setOriginRegionId}
+            regionId={region1Id}
+            setRegionId={setRegion1Id}
             disabled={loading}
           />
           <RegionSelect
-            id="market-opportunities-destination-region"
-            label="Destination Region"
+            id="market-opportunities-region2"
+            label="Region 2"
             regions={regions}
-            regionId={destinationRegionId}
-            setRegionId={setDestinationRegionId}
+            regionId={region2Id}
+            setRegionId={setRegion2Id}
             disabled={loading}
           />
           <button
             type="button"
             onClick={handleSearch}
-            disabled={loading}
-            title="Refresh"
-            aria-label="Refresh"
+            disabled={loading || !canSearch}
+            title="Search"
+            aria-label="Search"
             className="shrink-0 rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 hover:bg-zinc-700 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Refresh
+            Search
           </button>
         </div>
         <p className="max-w-xl text-center text-xs text-zinc-500">

@@ -253,8 +253,9 @@ export async function fetchMarketOpportunities(
   ];
   const jumpsByPair = new Map<string, number>();
   let routesDone = 0;
-  for (let i = 0; i < systemPairs.length; i += 20) {
-    const batch = systemPairs.slice(i, i + 20);
+  const ROUTE_BATCH_SIZE = 5;
+  for (let i = 0; i < systemPairs.length; i += ROUTE_BATCH_SIZE) {
+    const batch = systemPairs.slice(i, i + ROUTE_BATCH_SIZE);
     await Promise.all(
       batch.map(async (pair) => {
         const jumps = await getRouteJumps(pair.origin, pair.destination);

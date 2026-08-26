@@ -13,6 +13,37 @@ import blueprintData from "./blueprintData.json";
 
 const ESI_BASE = "https://esi.evetech.net/latest";
 
+/** Delay (ms) before retrying a rate-limited (429) request, doubled on each subsequent retry. */
+const RATE_LIMIT_BASE_DELAY_MS = 1000;
+const RATE_LIMIT_MAX_RETRIES = 5;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Retries `fn` with exponential backoff when it throws for a 429 (rate-limited) response. */
+async function withRateLimitRetry<T>(fn: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      const isRateLimited = e instanceof RateLimitError;
+      if (!isRateLimited || attempt >= RATE_LIMIT_MAX_RETRIES) throw e;
+      const delay = e.retryAfterMs ?? RATE_LIMIT_BASE_DELAY_MS * 2 ** attempt;
+      await sleep(delay);
+    }
+  }
+}
+
+class RateLimitError extends Error {
+  constructor(
+    url: string,
+    readonly retryAfterMs: number | null,
+  ) {
+    super(`ESI 429: ${url}`);
+  }
+}
+
 export interface Corporation {
   corporation_id: number;
   name: string;
@@ -77,6 +108,10 @@ async function esiGet<T>(path: string, cacheable = false): Promise<T> {
     ...init,
     headers: { Accept: "application/json" },
   });
+  if (res.status === 429) {
+    const retryAfterSec = parseInt(res.headers.get("Retry-After") ?? "", 10);
+    throw new RateLimitError(url, Number.isFinite(retryAfterSec) ? retryAfterSec * 1000 : null);
+  }
   if (!res.ok) {
     throw new Error(`ESI ${res.status}: ${url}`);
   }
@@ -99,18 +134,25 @@ async function esiPost<T>(path: string, body: unknown): Promise<T> {
 
 async function esiGetAllPages<T>(path: string, extraSep = "&"): Promise<T[]> {
   const url = `${ESI_BASE}${path}`;
-  // Price data is never cached
-  const res = await fetch(url, {
-    cache: "no-store",
-    headers: { Accept: "application/json" },
+  const firstPageRes = await withRateLimitRetry(async () => {
+    // Price data is never cached
+    const res = await fetch(url, {
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+    });
+    if (res.status === 429) {
+      const retryAfterSec = parseInt(res.headers.get("Retry-After") ?? "", 10);
+      throw new RateLimitError(url, Number.isFinite(retryAfterSec) ? retryAfterSec * 1000 : null);
+    }
+    if (!res.ok) throw new Error(`ESI ${res.status}: ${url}`);
+    return res;
   });
-  if (!res.ok) throw new Error(`ESI ${res.status}: ${url}`);
-  const totalPages = parseInt(res.headers.get("X-Pages") ?? "1", 10);
-  const firstPage = (await res.json()) as T[];
+  const totalPages = parseInt(firstPageRes.headers.get("X-Pages") ?? "1", 10);
+  const firstPage = (await firstPageRes.json()) as T[];
   if (totalPages <= 1) return firstPage;
   const rest = await Promise.all(
     Array.from({ length: totalPages - 1 }, (_, i) =>
-      esiGet<T[]>(`${path}${extraSep}page=${i + 2}`),
+      withRateLimitRetry(() => esiGet<T[]>(`${path}${extraSep}page=${i + 2}`)),
     ),
   );
   return firstPage.concat(...rest);
@@ -220,9 +262,8 @@ export async function getRouteJumps(
   const cached = routeJumpsCache.get(key);
   if (cached !== undefined) return cached;
 
-  const route = await esiGet<number[]>(
-    `/route/${originSystemId}/${destinationSystemId}/?flag=shortest`,
-    true,
+  const route = await withRateLimitRetry(() =>
+    esiGet<number[]>(`/route/${originSystemId}/${destinationSystemId}/?flag=shortest`, true),
   );
   const jumps = Math.max(0, route.length - 1);
   routeJumpsCache.set(key, jumps);
@@ -244,9 +285,8 @@ export async function getTypeVolumeBatch(typeIds: number[]): Promise<Map<number,
         result.set(typeId, cached);
         return;
       }
-      const t = await esiGet<{ packaged_volume?: number; volume?: number }>(
-        `/universe/types/${typeId}/`,
-        true,
+      const t = await withRateLimitRetry(() =>
+        esiGet<{ packaged_volume?: number; volume?: number }>(`/universe/types/${typeId}/`, true),
       );
       const volume = t.packaged_volume ?? t.volume ?? 0;
       typeVolumeCache.set(typeId, volume);
@@ -268,7 +308,9 @@ export async function getMarketHistory(
 export async function getTypeInfo(typeId: number): Promise<TypeInfo> {
   const cached = typeInfoCache.get(typeId);
   if (cached) return cached;
-  const t = await esiGet<{ name: string }>(`/universe/types/${typeId}/`, true);
+  const t = await withRateLimitRetry(() =>
+    esiGet<{ name: string }>(`/universe/types/${typeId}/`, true),
+  );
   const info: TypeInfo = { type_id: typeId, name: t.name };
   typeInfoCache.set(typeId, info);
   return info;
