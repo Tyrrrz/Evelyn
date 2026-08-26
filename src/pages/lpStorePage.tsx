@@ -3,7 +3,7 @@ import Layout from "../components/layout.tsx";
 import LpStoreTable from "../components/lpStoreTable.tsx";
 import { getCorporations } from "../esi/client.ts";
 import type { LpStoreRow } from "../esi/lpStore.ts";
-import { fetchLpStoreRows } from "../esi/lpStore.ts";
+import { DEFAULT_SALES_TAX_LEVEL, fetchLpStoreRows, SALES_TAX_LEVELS } from "../esi/lpStore.ts";
 import { DEFAULT_REGION_ID, getRegions } from "../esi/regions.ts";
 import {
   boolSearchParam,
@@ -37,6 +37,22 @@ export default function LpStorePage() {
         : undefined;
     },
   });
+  const [salesTaxLevel, setSalesTaxLevel] = useSearchParamState<number>(
+    "salesTax",
+    DEFAULT_SALES_TAX_LEVEL,
+    {
+      ...numberSearchParam,
+      deserialize: (raw) => {
+        const parsed = numberSearchParam.deserialize?.(raw);
+        return parsed !== undefined && SALES_TAX_LEVELS.some((t) => t.level === parsed)
+          ? parsed
+          : undefined;
+      },
+    },
+  );
+  const salesTaxRate =
+    SALES_TAX_LEVELS.find((t) => t.level === salesTaxLevel)?.taxRate ??
+    SALES_TAX_LEVELS[DEFAULT_SALES_TAX_LEVEL].taxRate;
   const [rows, setRows] = useState<LpStoreRow[]>([]);
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
   const [loading, setLoading] = useState(false);
@@ -68,7 +84,12 @@ export default function LpStorePage() {
     setCorpId(corp?.corporation_id ?? null);
   };
 
-  const loadLpStoreData = async (corp: Corporation, region: number, withBlueprints: boolean) => {
+  const loadLpStoreData = async (
+    corp: Corporation,
+    region: number,
+    withBlueprints: boolean,
+    taxRate: number,
+  ) => {
     setLoading(true);
     setProgress(null);
     setError(null);
@@ -79,6 +100,7 @@ export default function LpStorePage() {
         corp.corporation_id,
         region,
         withBlueprints,
+        taxRate,
         (done, total) => setProgress({ done, total }),
       );
       setRows(data);
@@ -92,7 +114,7 @@ export default function LpStorePage() {
   };
 
   const handleSearch = () => {
-    if (selectedCorp) void loadLpStoreData(selectedCorp, regionId, includeBlueprints);
+    if (selectedCorp) void loadLpStoreData(selectedCorp, regionId, includeBlueprints, salesTaxRate);
   };
 
   // Immediately search when the page is loaded with an NPC corp already selected via query params.
@@ -103,7 +125,7 @@ export default function LpStorePage() {
 
     if (!selectedCorp) return;
     const timeoutId = setTimeout(() => {
-      void loadLpStoreData(selectedCorp, regionId, includeBlueprints);
+      void loadLpStoreData(selectedCorp, regionId, includeBlueprints, salesTaxRate);
     }, 0);
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -113,7 +135,17 @@ export default function LpStorePage() {
     if (loading) return;
 
     setIncludeBlueprints(checked);
-    if (selectedCorp && fetchedAt) void loadLpStoreData(selectedCorp, regionId, checked);
+    if (selectedCorp && fetchedAt)
+      void loadLpStoreData(selectedCorp, regionId, checked, salesTaxRate);
+  };
+
+  const handleSalesTaxChange = (level: number) => {
+    if (loading) return;
+
+    setSalesTaxLevel(level);
+    const rate = SALES_TAX_LEVELS.find((t) => t.level === level)?.taxRate ?? salesTaxRate;
+    if (selectedCorp && fetchedAt)
+      void loadLpStoreData(selectedCorp, regionId, includeBlueprints, rate);
   };
 
   const filteredRows = rows.filter(
@@ -162,6 +194,21 @@ export default function LpStorePage() {
               {regions.map((r) => (
                 <option key={r.regionId} value={r.regionId}>
                   {r.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-zinc-400">Sales Tax</label>
+            <select
+              value={salesTaxLevel}
+              onChange={(e) => handleSalesTaxChange(Number(e.target.value))}
+              disabled={loading}
+              className="w-64 rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {SALES_TAX_LEVELS.map((t) => (
+                <option key={t.level} value={t.level}>
+                  {(t.taxRate * 100).toFixed(2)}% (Accounting {t.accountingNumeral})
                 </option>
               ))}
             </select>

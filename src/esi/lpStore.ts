@@ -50,6 +50,27 @@ export interface LpStoreRow {
   immediateLiquidityIsk: number;
 }
 
+/** A selectable Sales Tax rate, tied to a level of the Accounting skill. */
+export interface SalesTaxLevel {
+  level: number;
+  /** Roman numeral label for the Accounting skill level (level 0 has no numeral). */
+  accountingNumeral: string;
+  /** Sales tax rate, as a fraction (e.g. 0.075 for 7.5%). */
+  taxRate: number;
+}
+
+export const SALES_TAX_LEVELS: SalesTaxLevel[] = [
+  { level: 0, accountingNumeral: "0", taxRate: 0.075 },
+  { level: 1, accountingNumeral: "I", taxRate: 0.0668 },
+  { level: 2, accountingNumeral: "II", taxRate: 0.0585 },
+  { level: 3, accountingNumeral: "III", taxRate: 0.0503 },
+  { level: 4, accountingNumeral: "IV", taxRate: 0.042 },
+  { level: 5, accountingNumeral: "V", taxRate: 0.0337 },
+];
+
+/** Default Sales Tax level: Accounting V, the lowest tax rate. */
+export const DEFAULT_SALES_TAX_LEVEL = 5;
+
 const BATCH_SIZE = 10;
 
 function memoizeByTypeId<T>(
@@ -78,6 +99,7 @@ function computeImmediateLiquidity(
   lpCost: number,
   quantity: number,
   requiredIskCostPerExchange: number,
+  salesTaxRate: number,
 ): { lp: number; isk: number } {
   if (lpCost <= 0 || quantity <= 0) return { lp: 0, isk: 0 };
 
@@ -93,6 +115,7 @@ function computeImmediateLiquidity(
     grossIsk += itemsTaken * level.price;
     itemsRemaining -= itemsTaken;
   }
+  grossIsk *= 1 - salesTaxRate;
 
   const netIsk = grossIsk - exchanges * requiredIskCostPerExchange;
   return { lp: exchanges * lpCost, isk: netIsk };
@@ -102,6 +125,7 @@ export async function fetchLpStoreRows(
   corporationId: number,
   regionId: number,
   includeBlueprints: boolean,
+  salesTaxRate: number = SALES_TAX_LEVELS[DEFAULT_SALES_TAX_LEVEL].taxRate,
   onProgress?: (done: number, total: number) => void,
 ): Promise<LpStoreRow[]> {
   const allOffers = await getLpOffers(corporationId);
@@ -214,8 +238,8 @@ export async function fetchLpStoreRows(
           const blueprintMaterialsIskCost = iskCostOf(blueprintMaterialItems);
           const requiredIskCost = offer.isk_cost + requiredItemsIskCost + blueprintMaterialsIskCost;
 
-          const buyRevenue = buy !== null ? buy * effectiveQuantity : null;
-          const sellRevenue = sell !== null ? sell * effectiveQuantity : null;
+          const buyRevenue = buy !== null ? buy * effectiveQuantity * (1 - salesTaxRate) : null;
+          const sellRevenue = sell !== null ? sell * effectiveQuantity * (1 - salesTaxRate) : null;
 
           const lpToIskBuy =
             buyRevenue !== null && offer.lp_cost > 0
@@ -231,6 +255,7 @@ export async function fetchLpStoreRows(
             offer.lp_cost,
             effectiveQuantity,
             requiredIskCost,
+            salesTaxRate,
           );
 
           return {
