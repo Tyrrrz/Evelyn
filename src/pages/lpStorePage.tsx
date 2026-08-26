@@ -3,7 +3,12 @@ import Layout from "../components/layout.tsx";
 import LpStoreTable from "../components/lpStoreTable.tsx";
 import { getCorporations } from "../esi/client.ts";
 import type { LpStoreRow } from "../esi/lpStore.ts";
-import { DEFAULT_SALES_TAX_LEVEL, fetchLpStoreRows, SALES_TAX_LEVELS } from "../esi/lpStore.ts";
+import {
+  DEFAULT_SALES_TAX_LEVEL,
+  fetchLpStoreRows,
+  SALES_TAX_LEVELS,
+  toAccountingNumeral,
+} from "../esi/lpStore.ts";
 import { DEFAULT_REGION_ID, getRegions } from "../esi/regions.ts";
 import {
   boolSearchParam,
@@ -208,7 +213,7 @@ export default function LpStorePage() {
             >
               {SALES_TAX_LEVELS.map((t) => (
                 <option key={t.level} value={t.level}>
-                  {(t.taxRate * 100).toFixed(2)}% (Accounting {t.accountingNumeral})
+                  {(t.taxRate * 100).toFixed(2)}% (Accounting {toAccountingNumeral(t.level)})
                 </option>
               ))}
             </select>

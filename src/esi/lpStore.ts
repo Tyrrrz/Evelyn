@@ -53,19 +53,22 @@ export interface LpStoreRow {
 /** A selectable Sales Tax rate, tied to a level of the Accounting skill. */
 export interface SalesTaxLevel {
   level: number;
-  /** Roman numeral label for the Accounting skill level (level 0 has no numeral). */
-  accountingNumeral: string;
-  /** Sales tax rate, as a fraction (e.g. 0.075 for 7.5%). */
   taxRate: number;
 }
 
+/** Converts a skill level (0–5) to its Roman numeral label, with 0 as a special case. */
+export function toAccountingNumeral(level: number): string {
+  if (level === 0) return "0";
+  return ["", "I", "II", "III", "IV", "V"][level] ?? String(level);
+}
+
 export const SALES_TAX_LEVELS: SalesTaxLevel[] = [
-  { level: 0, accountingNumeral: "0", taxRate: 0.075 },
-  { level: 1, accountingNumeral: "I", taxRate: 0.0668 },
-  { level: 2, accountingNumeral: "II", taxRate: 0.0585 },
-  { level: 3, accountingNumeral: "III", taxRate: 0.0503 },
-  { level: 4, accountingNumeral: "IV", taxRate: 0.042 },
-  { level: 5, accountingNumeral: "V", taxRate: 0.0337 },
+  { level: 0, taxRate: 0.075 },
+  { level: 1, taxRate: 0.0668 },
+  { level: 2, taxRate: 0.0585 },
+  { level: 3, taxRate: 0.0503 },
+  { level: 4, taxRate: 0.042 },
+  { level: 5, taxRate: 0.0337 },
 ];
 
 /** Default Sales Tax level: Accounting V, the lowest tax rate. */
@@ -108,14 +111,14 @@ function computeImmediateLiquidity(
   if (exchanges <= 0) return { lp: 0, isk: 0 };
 
   let itemsRemaining = exchanges * quantity;
-  let grossIsk = 0;
+  let grossIskBeforeTax = 0;
   for (const level of levels) {
     if (itemsRemaining <= 0) break;
     const itemsTaken = Math.min(level.volume, itemsRemaining);
-    grossIsk += itemsTaken * level.price;
+    grossIskBeforeTax += itemsTaken * level.price;
     itemsRemaining -= itemsTaken;
   }
-  grossIsk *= 1 - salesTaxRate;
+  const grossIsk = grossIskBeforeTax * (1 - salesTaxRate);
 
   const netIsk = grossIsk - exchanges * requiredIskCostPerExchange;
   return { lp: exchanges * lpCost, isk: netIsk };
