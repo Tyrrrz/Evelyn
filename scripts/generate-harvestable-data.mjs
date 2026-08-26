@@ -128,6 +128,10 @@ export async function generate(zipBuffer) {
 
     for (const t of categoryTypes) {
       if (!t.name || typeof t.volume !== "number") continue;
+      // "Batch Compressed" variants predate the current one-to-one compression system and can no
+      // longer be produced in-game; only the legacy leftover stock still floats around the
+      // market, so they're excluded from the bundled dataset.
+      if (t.name.startsWith("Batch Compressed ")) continue;
       data.push({ typeId: t.id, name: t.name, volume: t.volume, category });
     }
   }

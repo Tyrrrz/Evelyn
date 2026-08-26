@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getHarvestableColor } from "../esi/harvestableColors.ts";
 import type { HarvestablePriceRow } from "../esi/harvestablePrices.ts";
 import type { HarvestableCategory } from "../esi/harvestables.ts";
 import { fmt } from "../utils/fmt.ts";
@@ -24,6 +25,25 @@ function sortRows(rows: HarvestablePriceRow[], key: SortKey, dir: SortDir): Harv
     }
     return dir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
   });
+}
+
+/**
+ * Interpolates a yellow -> green color for a value on a [min, max] scale.
+ * Values at or below min are yellow; values at/above max are green.
+ */
+function ratioColor(value: number | null, min: number, max: number): string {
+  if (value === null) return "#71717a"; // zinc-500, unknown
+
+  const t = max > min ? Math.max(0, Math.min(1, (value - min) / (max - min))) : 1;
+  const hue = 60 + t * 60; // 60 = yellow, 120 = green
+  return `hsl(${hue}, 75%, 45%)`;
+}
+
+/** Computes the [min, max] range of a column's non-null values, for use with {@link ratioColor}. */
+function columnRange(rows: HarvestablePriceRow[], key: SortKey): { min: number; max: number } {
+  const values = rows.map((r) => r[key]).filter((v): v is number => typeof v === "number");
+  if (!values.length) return { min: 0, max: 0 };
+  return { min: Math.min(...values), max: Math.max(...values) };
 }
 
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
@@ -65,22 +85,30 @@ function Th({
   );
 }
 
-function formatIsk(value: number | null): string {
-  return value === null ? "??? ISK" : `${fmt(value)} ISK`;
+function formatIsk(value: number | null, unit: string): string {
+  return value === null ? "—" : `${fmt(value)} ISK/${unit}`;
 }
 
-/** Merged cell showing the price per m³ (primary) and the price per unit below it. */
+/** Merged cell showing the price per m³ (primary, colored by its rank within the column) and the
+ * price per unit below it. */
 function PriceCell({
   pricePerM3,
   pricePerUnit,
+  range,
 }: {
   pricePerM3: number | null;
   pricePerUnit: number | null;
+  range: { min: number; max: number };
 }) {
   return (
     <td className="px-3 py-2 tabular-nums">
-      <div className="font-semibold text-zinc-100">{formatIsk(pricePerM3)} /m³</div>
-      <div className="text-xs text-zinc-500">{formatIsk(pricePerUnit)} /unit</div>
+      <div
+        className="font-semibold"
+        style={{ color: ratioColor(pricePerM3, range.min, range.max) }}
+      >
+        {formatIsk(pricePerM3, "m³")}
+      </div>
+      <div className="text-xs text-zinc-500">{formatIsk(pricePerUnit, "unit")}</div>
     </td>
   );
 }
@@ -103,6 +131,9 @@ function HarvestableTable({
 
   if (rows.length === 0) return null;
 
+  const sellRange = columnRange(rows, "sellPricePerM3");
+  const buyRange = columnRange(rows, "buyPricePerM3");
+
   return (
     <div className="mb-8">
       <h2 className="mb-2 text-lg font-semibold text-zinc-100">{CATEGORY_LABELS[category]}</h2>
@@ -124,9 +155,22 @@ function HarvestableTable({
           <tbody>
             {sorted.map((row, i) => (
               <tr key={row.typeId} className={i % 2 === 0 ? "bg-zinc-950" : "bg-zinc-900"}>
-                <td className="px-3 py-2 font-medium">{row.typeName}</td>
-                <PriceCell pricePerM3={row.sellPricePerM3} pricePerUnit={row.sellPricePerUnit} />
-                <PriceCell pricePerM3={row.buyPricePerM3} pricePerUnit={row.buyPricePerUnit} />
+                <td
+                  className="px-3 py-2 font-medium"
+                  style={{ color: getHarvestableColor(row.typeName) }}
+                >
+                  {row.typeName}
+                </td>
+                <PriceCell
+                  pricePerM3={row.sellPricePerM3}
+                  pricePerUnit={row.sellPricePerUnit}
+                  range={sellRange}
+                />
+                <PriceCell
+                  pricePerM3={row.buyPricePerM3}
+                  pricePerUnit={row.buyPricePerUnit}
+                  range={buyRange}
+                />
               </tr>
             ))}
           </tbody>
@@ -137,8 +181,8 @@ function HarvestableTable({
 }
 
 export default function HarvestablePricesTable({ rows }: { rows: HarvestablePriceRow[] }) {
-  const [sortKey, setSortKey] = useState<SortKey>("typeName");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [sortKey, setSortKey] = useState<SortKey>("buyPricePerM3");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   const handleSort = (key: SortKey) => {
     if (key === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));

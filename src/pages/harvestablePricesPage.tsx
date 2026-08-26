@@ -57,7 +57,7 @@ export default function HarvestablePricesPage() {
 
   return (
     <Layout
-      title="Harvestable Prices"
+      title="Mining Profits"
       subtitle="Buy/Sell prices for all ore, gas and ice types (and their compressed forms) in a region"
     >
       <div className="mb-4 flex flex-col items-center gap-2">

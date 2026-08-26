@@ -13,7 +13,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/lp" element={<LpStorePage />} />
         <Route path="/appraisal" element={<ItemAppraisalPage />} />
-        <Route path="/harvestables" element={<HarvestablePricesPage />} />
+        <Route path="/mining" element={<HarvestablePricesPage />} />
       </Routes>
     </>
   );
