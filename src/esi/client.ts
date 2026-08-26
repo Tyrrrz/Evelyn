@@ -33,6 +33,8 @@ export interface MarketOrder {
   price: number;
   volume_remain: number;
   is_buy_order: boolean;
+  system_id: number;
+  location_id: number;
 }
 
 export interface MarketHistoryEntry {
@@ -133,6 +135,126 @@ export async function getLpOffers(corporationId: number): Promise<LpOffer[]> {
 export async function getMarketOrders(typeId: number, regionId: number): Promise<MarketOrder[]> {
   // Market orders: always fresh
   return esiGetAllPages<MarketOrder>(`/markets/${regionId}/orders/?type_id=${typeId}`, "&");
+}
+
+/**
+ * Fetches every open order (buy and sell, for every item type) in a region. Unlike
+ * {@link getMarketOrders}, this isn't scoped to a single type, so it can return a very large
+ * number of orders (and pages) for busy regions.
+ */
+export async function getAllMarketOrders(regionId: number): Promise<MarketOrder[]> {
+  return esiGetAllPages<MarketOrder>(`/markets/${regionId}/orders/?order_type=all`, "&");
+}
+
+/**
+ * EVE's Upwell structures (player-owned citadels/engineering complexes/etc.) use 64-bit location
+ * IDs that are far larger than NPC station IDs, which is the only reliable way to tell them apart
+ * without an authenticated ESI call (resolving a structure's name/system requires a docking-access
+ * token, which this app doesn't request).
+ */
+const STRUCTURE_ID_THRESHOLD = 1_000_000_000_000;
+
+/** Whether a `location_id` (from a market order) refers to a player-owned structure rather than an NPC station. */
+export function isPlayerStructure(locationId: number): boolean {
+  return locationId >= STRUCTURE_ID_THRESHOLD;
+}
+
+/** Max number of IDs ESI's /universe/names/ endpoint accepts per request. */
+const RESOLVE_STATION_NAMES_BATCH_SIZE = 1000;
+
+/**
+ * Resolves NPC station IDs to their display names via ESI's universal name-resolution endpoint.
+ * Only NPC station IDs should be passed in — player-owned structure IDs can't be resolved this
+ * way (see {@link isPlayerStructure}) and would fail the whole batch.
+ */
+export async function resolveStationNames(stationIds: number[]): Promise<Map<number, string>> {
+  const unique = [...new Set(stationIds)];
+  const result = new Map<number, string>();
+
+  for (let i = 0; i < unique.length; i += RESOLVE_STATION_NAMES_BATCH_SIZE) {
+    const batch = unique.slice(i, i + RESOLVE_STATION_NAMES_BATCH_SIZE);
+    try {
+      const response = await esiPost<{ id: number; name: string; category: string }[]>(
+        "/universe/names/",
+        batch,
+      );
+      for (const item of response) {
+        if (item.category === "station") result.set(item.id, item.name);
+      }
+    } catch {
+      // A single unresolvable/decommissioned ID fails the whole batch — fall back to resolving
+      // this batch one ID at a time so the rest still get names.
+      await Promise.all(
+        batch.map(async (id) => {
+          try {
+            const response = await esiPost<{ id: number; name: string; category: string }[]>(
+              "/universe/names/",
+              [id],
+            );
+            if (response[0]?.category === "station") result.set(id, response[0].name);
+          } catch {
+            // Leave unresolved — caller falls back to a generic label.
+          }
+        }),
+      );
+    }
+  }
+
+  return result;
+}
+
+/** Cache of jump counts between solar systems, keyed as `"originId-destinationId"`. */
+const routeJumpsCache = new Map<string, number>();
+
+/**
+ * Number of jumps for the most direct route (shortest, ignoring security-status preferences)
+ * between two solar systems. Cached per system pair for the session, since it's static game data.
+ */
+export async function getRouteJumps(
+  originSystemId: number,
+  destinationSystemId: number,
+): Promise<number> {
+  if (originSystemId === destinationSystemId) return 0;
+
+  const key = `${originSystemId}-${destinationSystemId}`;
+  const cached = routeJumpsCache.get(key);
+  if (cached !== undefined) return cached;
+
+  const route = await esiGet<number[]>(
+    `/route/${originSystemId}/${destinationSystemId}/?flag=shortest`,
+    true,
+  );
+  const jumps = Math.max(0, route.length - 1);
+  routeJumpsCache.set(key, jumps);
+  return jumps;
+}
+
+/** Long-lived in-memory cache for item packaged volume (m³ per unit; doesn't change at runtime). */
+const typeVolumeCache = new Map<number, number>();
+
+/** Fetches the packaged volume (in m³ per unit) for a batch of item types. */
+export async function getTypeVolumeBatch(typeIds: number[]): Promise<Map<number, number>> {
+  const unique = [...new Set(typeIds)];
+  const result = new Map<number, number>();
+
+  await Promise.all(
+    unique.map(async (typeId) => {
+      const cached = typeVolumeCache.get(typeId);
+      if (cached !== undefined) {
+        result.set(typeId, cached);
+        return;
+      }
+      const t = await esiGet<{ packaged_volume?: number; volume?: number }>(
+        `/universe/types/${typeId}/`,
+        true,
+      );
+      const volume = t.packaged_volume ?? t.volume ?? 0;
+      typeVolumeCache.set(typeId, volume);
+      result.set(typeId, volume);
+    }),
+  );
+
+  return result;
 }
 
 export async function getMarketHistory(

@@ -38,6 +38,16 @@ export default function HomePage() {
             Buy/Sell prices per m³ (and per unit) for all ore, gas and ice types in a region
           </span>
         </Link>
+        <Link
+          to="/opportunities"
+          className="flex flex-col gap-1 rounded-lg border border-zinc-800 bg-zinc-900 p-5 transition-colors hover:border-amber-500 hover:bg-zinc-800"
+        >
+          <span className="font-semibold text-zinc-100">Market Opportunities</span>
+          <span className="text-sm text-zinc-500">
+            Find items that can be bought from sell orders in one place and sold to buy orders in
+            another, with a profit
+          </span>
+        </Link>
       </div>
     </div>
   );
