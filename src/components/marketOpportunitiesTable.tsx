@@ -4,7 +4,7 @@ import type { MarketLocation, MarketOpportunityRow } from "../esi/marketOpportun
 import { fmt } from "../utils/fmt.ts";
 
 type SortKey =
-  "typeName" | "origin" | "destination" | "jumps" | "sellPrice" | "buyPrice" | "profit";
+  "typeName" | "origin" | "destination" | "jumps" | "volume" | "sellPrice" | "buyPrice" | "profit";
 type SortDir = "asc" | "desc";
 
 function sortRows(
@@ -23,6 +23,8 @@ function sortRows(
         return sign * locationLabel(a.destination).localeCompare(locationLabel(b.destination));
       case "jumps":
         return sign * (a.jumps - b.jumps);
+      case "volume":
+        return sign * (a.totalVolumeM3 - b.totalVolumeM3);
       case "sellPrice":
         return sign * (a.sellPrice - b.sellPrice);
       case "buyPrice":
@@ -43,6 +45,32 @@ function securityColorClass(securityStatus: number): string {
   if (rounded >= 0.5) return "text-emerald-400";
   if (rounded > 0) return "text-yellow-400";
   return "text-purple-700";
+}
+
+const VOLUME_LOW_M3 = 10_000;
+const VOLUME_MID_M3 = 50_000;
+const VOLUME_HIGH_M3 = 60_000;
+const VOLUME_COLOR_LOW = [52, 211, 153] as const; // emerald-400
+const VOLUME_COLOR_MID = [250, 204, 21] as const; // yellow-400
+const VOLUME_COLOR_HIGH = [248, 113, 113] as const; // red-400
+
+function lerpColor(a: readonly number[], b: readonly number[], t: number): string {
+  const [r, g, bl] = a.map((v, i) => Math.round(v + (b[i]! - v) * t));
+  return `rgb(${r}, ${g}, ${bl})`;
+}
+
+/** Interpolated color for total transaction volume: <=10k green, <=50k yellow, >=60k red. */
+function volumeColor(totalVolumeM3: number): string {
+  if (totalVolumeM3 <= VOLUME_LOW_M3) return lerpColor(VOLUME_COLOR_LOW, VOLUME_COLOR_LOW, 0);
+  if (totalVolumeM3 <= VOLUME_MID_M3) {
+    const t = (totalVolumeM3 - VOLUME_LOW_M3) / (VOLUME_MID_M3 - VOLUME_LOW_M3);
+    return lerpColor(VOLUME_COLOR_LOW, VOLUME_COLOR_MID, t);
+  }
+  if (totalVolumeM3 <= VOLUME_HIGH_M3) {
+    const t = (totalVolumeM3 - VOLUME_MID_M3) / (VOLUME_HIGH_M3 - VOLUME_MID_M3);
+    return lerpColor(VOLUME_COLOR_MID, VOLUME_COLOR_HIGH, t);
+  }
+  return lerpColor(VOLUME_COLOR_HIGH, VOLUME_COLOR_HIGH, 0);
 }
 
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
@@ -149,6 +177,13 @@ export default function MarketOpportunitiesTable({ rows }: { rows: MarketOpportu
             <Th col="jumps" title="Jumps for the most direct route" {...thProps}>
               Jumps
             </Th>
+            <Th
+              col="volume"
+              title="Total packaged volume (m³) of the matched quantity"
+              {...thProps}
+            >
+              Volume
+            </Th>
             <Th col="sellPrice" title="Weighted-average sell order price paid" {...thProps}>
               Sell
             </Th>
@@ -174,6 +209,12 @@ export default function MarketOpportunitiesTable({ rows }: { rows: MarketOpportu
               <LocationCell location={row.origin} />
               <LocationCell location={row.destination} />
               <td className="px-3 py-2 tabular-nums">{row.jumps}</td>
+              <td
+                className="px-3 py-2 tabular-nums"
+                style={{ color: volumeColor(row.totalVolumeM3) }}
+              >
+                {fmt(row.totalVolumeM3)} m³
+              </td>
               <td className="px-3 py-2 tabular-nums">
                 {formatIsk(row.sellPrice)}
                 {row.sellIsNpc && <NpcTag />}

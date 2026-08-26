@@ -8,62 +8,8 @@ import {
   DEFAULT_ACCOUNTING_SKILL_LEVEL,
   fetchRawMarketOpportunities,
 } from "../esi/marketOpportunities.ts";
-import { DEFAULT_REGION_ID, getRegions } from "../esi/regions.ts";
-import {
-  boolSearchParam,
-  numberSearchParam,
-  useSearchParamState,
-} from "../hooks/useSearchParamState.ts";
-
-function makeRegionParam(regions: { regionId: number }[]) {
-  return {
-    serialize: (value: number | null) => (value === null ? undefined : String(value)),
-    deserialize: (raw: string) => {
-      const parsed = numberSearchParam.deserialize?.(raw);
-      return parsed !== undefined && regions.some((r) => r.regionId === parsed)
-        ? parsed
-        : undefined;
-    },
-  };
-}
-
-function RegionSelect({
-  label,
-  regions,
-  regionId,
-  setRegionId,
-  disabled,
-  id,
-}: {
-  label: string;
-  regions: { regionId: number; name: string }[];
-  regionId: number | null;
-  setRegionId: (id: number | null) => void;
-  disabled: boolean;
-  id: string;
-}) {
-  return (
-    <div>
-      <label htmlFor={id} className="mb-1 block text-sm font-medium text-zinc-400">
-        {label}
-      </label>
-      <select
-        id={id}
-        value={regionId ?? ""}
-        onChange={(e) => setRegionId(e.target.value ? Number(e.target.value) : null)}
-        disabled={disabled}
-        className="w-64 rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <option value="">Select a region…</option>
-        {regions.map((r) => (
-          <option key={r.regionId} value={r.regionId}>
-            {r.name}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
+import { getRegions } from "../esi/regions.ts";
+import { boolSearchParam, useSearchParamState } from "../hooks/useSearchParamState.ts";
 
 function TaxSelect({
   skillLevel,
@@ -100,20 +46,6 @@ function TaxSelect({
 }
 
 export default function MarketOpportunitiesPage() {
-  const regions = getRegions();
-  const regionParam = makeRegionParam(regions);
-
-  const [region1Id, setRegion1Id] = useSearchParamState<number | null>(
-    "region1",
-    DEFAULT_REGION_ID,
-    regionParam,
-  );
-  const [region2Id, setRegion2Id] = useSearchParamState<number | null>(
-    "region2",
-    null,
-    regionParam,
-  );
-
   const [rawOpportunities, setRawOpportunities] = useState<RawMarketOpportunity[]>([]);
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
   const [loading, setLoading] = useState(false);
@@ -137,14 +69,15 @@ export default function MarketOpportunitiesPage() {
     [rawOpportunities, accountingSkillLevel, includeNpcToNpc],
   );
 
-  const loadOpportunities = async (region1: number, region2: number) => {
+  const loadOpportunities = async () => {
     setLoading(true);
     setStage(null);
     setError(null);
     setRawOpportunities([]);
     setFetchedAt(null);
     try {
-      const data = await fetchRawMarketOpportunities([region1, region2], (label, done, total) =>
+      const regionIds = getRegions().map((r) => r.regionId);
+      const data = await fetchRawMarketOpportunities(regionIds, (label, done, total) =>
         setStage({ label, done, total }),
       );
       setRawOpportunities(data);
@@ -157,23 +90,14 @@ export default function MarketOpportunitiesPage() {
     }
   };
 
-  const canSearch = region1Id !== null && region2Id !== null;
-  const handleSearch = () => {
-    if (region1Id === null || region2Id === null) return;
-    void loadOpportunities(region1Id, region2Id);
-  };
+  const handleSearch = () => void loadOpportunities();
 
-  // Only auto-search on page load if both regions were explicitly set (e.g. from a shared link) —
-  // otherwise wait for the user to pick a second region and search explicitly.
+  // Scan all regions as soon as the page opens — there's no region selection anymore.
   const didAutoSearch = useRef(false);
   useEffect(() => {
     if (didAutoSearch.current) return;
     didAutoSearch.current = true;
-    if (region1Id !== null && region2Id !== null) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time auto-search guarded by didAutoSearch, not reactive to state changes
-      void loadOpportunities(region1Id, region2Id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void loadOpportunities();
   }, []);
 
   return (
@@ -183,22 +107,6 @@ export default function MarketOpportunitiesPage() {
     >
       <div className="mb-4 flex flex-col items-center gap-2">
         <div className="flex flex-wrap items-end justify-center gap-2">
-          <RegionSelect
-            id="market-opportunities-region1"
-            label="Region 1"
-            regions={regions}
-            regionId={region1Id}
-            setRegionId={setRegion1Id}
-            disabled={loading}
-          />
-          <RegionSelect
-            id="market-opportunities-region2"
-            label="Region 2"
-            regions={regions}
-            regionId={region2Id}
-            setRegionId={setRegion2Id}
-            disabled={loading}
-          />
           <TaxSelect
             skillLevel={accountingSkillLevel}
             setSkillLevel={setAccountingSkillLevel}
@@ -207,17 +115,16 @@ export default function MarketOpportunitiesPage() {
           <button
             type="button"
             onClick={handleSearch}
-            disabled={loading || !canSearch}
-            title="Search"
-            aria-label="Search"
+            disabled={loading}
+            title="Refresh"
+            aria-label="Refresh"
             className="shrink-0 rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 hover:bg-zinc-700 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Search
+            Refresh
           </button>
         </div>
         <p className="max-w-xl text-center text-xs text-zinc-500">
-          Set both regions the same to only look for opportunities within a single region. Scanning
-          busy regions (e.g. The Forge) fetches every open order in them and can take a while.
+          Scans every region in New Eden, so this can take a while.
         </p>
         <label className="flex items-center gap-2 text-sm text-zinc-300">
           <input

@@ -36,6 +36,8 @@ export interface MarketOpportunityRow {
   buyPrice: number;
   /** Whether (any of) the matched buy orders were NPC-seeded rather than player-placed. */
   buyIsNpc: boolean;
+  /** Total packaged volume (m³) of the matched quantity being moved. */
+  totalVolumeM3: number;
   /** Profit after sales tax is deducted from the buy-side (destination) proceeds. */
   profitTotal: number;
   profitPerJump: number;
@@ -261,15 +263,23 @@ export async function fetchRawMarketOpportunities(
 ): Promise<RawMarketOpportunity[]> {
   const uniqueRegionIds = [...new Set(regionIds)];
 
+  // Each region's orders are themselves fetched via many concurrent paginated requests (see
+  // getAllMarketOrders/esiGetAllPages), so fetching every region at once would multiply that
+  // fan-out by the region count and risk 429s — a handful of regions at a time keeps things
+  // within ESI's rate limits even when scanning all of them.
+  const REGION_BATCH_SIZE = 3;
+  const allOrders: MarketOrder[] = [];
   onProgress?.("Fetching market orders", 0, uniqueRegionIds.length);
-  const ordersByRegion = await Promise.all(
-    uniqueRegionIds.map(async (regionId, i) => {
-      const orders = await getAllMarketOrders(regionId);
-      onProgress?.("Fetching market orders", i + 1, uniqueRegionIds.length);
-      return orders;
-    }),
-  );
-  const allOrders = ordersByRegion.flat();
+  for (let i = 0; i < uniqueRegionIds.length; i += REGION_BATCH_SIZE) {
+    const batch = uniqueRegionIds.slice(i, i + REGION_BATCH_SIZE);
+    const ordersByRegion = await Promise.all(batch.map((regionId) => getAllMarketOrders(regionId)));
+    allOrders.push(...ordersByRegion.flat());
+    onProgress?.(
+      "Fetching market orders",
+      Math.min(i + batch.length, uniqueRegionIds.length),
+      uniqueRegionIds.length,
+    );
+  }
 
   const ordersByType = new Map<number, MarketOrder[]>();
   for (const order of allOrders) {
@@ -403,6 +413,7 @@ export function computeMarketOpportunityRows(
       sellIsNpc: o.sellIsNpc,
       buyPrice: o.buyPrice,
       buyIsNpc: o.buyIsNpc,
+      totalVolumeM3: o.volume * o.quantity,
       profitTotal,
       profitPerJump: profitTotal / (o.jumps + 1),
       profitPerM3: o.volume > 0 ? profitTotal / (o.volume * o.quantity) : null,
