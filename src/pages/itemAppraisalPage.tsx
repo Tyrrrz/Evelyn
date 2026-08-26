@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import ItemAppraisalTable from "../components/itemAppraisalTable.tsx";
+import Layout from "../components/layout.tsx";
 import type { AppraisalItem, AppraisalRow } from "../esi/itemAppraisal.ts";
 import { fetchAppraisalRows, parseItemList } from "../esi/itemAppraisal.ts";
 import { DEFAULT_REGION_ID, getRegions } from "../esi/regions.ts";
@@ -162,71 +163,59 @@ export default function ItemAppraisalPage() {
     void loadAppraisal(parsedItems, regionId);
   };
   return (
-    <div className="min-h-screen bg-zinc-950 font-sans text-zinc-100">
-      <header className="border-b border-zinc-800 px-6 py-8 text-center">
-        <h1 className="text-2xl font-bold tracking-tight">
-          <Link to="/" className="text-amber-400 hover:text-amber-300">
-            Evelyn
-          </Link>
-          <span className="mx-2 font-normal text-zinc-600">/</span>
-          <span className="font-normal text-zinc-300">Item Appraisal</span>
-        </h1>
-        <p className="mt-2 text-sm text-zinc-500">
-          Paste a list of items copied from your inventory to get their Buy/Sell prices and totals
-        </p>
-      </header>
+    <Layout
+      title="Item Appraisal"
+      subtitle="Paste a list of items copied from your inventory to get their Buy/Sell prices and totals"
+    >
+      <div className="mb-4 flex flex-col items-center gap-2">
+        <RegionSelect regionId={regionId} setRegionId={setRegionId} disabled={loading} />
+        <ItemListTextarea text={text} setText={setText} disabled={loading} />
 
-      <main className="mx-auto max-w-screen-2xl px-6 py-6">
-        <div className="mb-4 flex flex-col items-center gap-2">
-          <RegionSelect regionId={regionId} setRegionId={setRegionId} disabled={loading} />
-          <ItemListTextarea text={text} setText={setText} disabled={loading} />
+        <button
+          type="button"
+          onClick={handleEvaluate}
+          disabled={loading || parsedItems.length === 0}
+          title="Evaluate"
+          aria-label="Evaluate"
+          className="shrink-0 rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 hover:bg-zinc-700 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Evaluate
+        </button>
+      </div>
 
-          <button
-            type="button"
-            onClick={handleEvaluate}
-            disabled={loading || parsedItems.length === 0}
-            title="Evaluate"
-            aria-label="Evaluate"
-            className="shrink-0 rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 hover:bg-zinc-700 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Evaluate
-          </button>
+      {fetchedAt && (
+        <div className="mb-4 text-center text-xs text-zinc-500">
+          {rows.length} items • fetched {fetchedAt.toLocaleString()}
         </div>
+      )}
 
-        {fetchedAt && (
-          <div className="mb-4 text-center text-xs text-zinc-500">
-            {rows.length} items • fetched {fetchedAt.toLocaleString()}
-          </div>
-        )}
+      {loading && (
+        <div className="mb-4 text-center text-sm text-zinc-400">
+          Fetching item prices…
+          {progress && (
+            <span className="ml-2 text-zinc-500">
+              ({progress.done}/{progress.total} items processed)
+            </span>
+          )}
+        </div>
+      )}
 
-        {loading && (
-          <div className="mb-4 text-center text-sm text-zinc-400">
-            Fetching item prices…
-            {progress && (
-              <span className="ml-2 text-zinc-500">
-                ({progress.done}/{progress.total} items processed)
-              </span>
-            )}
-          </div>
-        )}
+      {error && <div className="mb-4 text-center text-sm text-red-400">Error: {error}</div>}
 
-        {error && <div className="mb-4 text-center text-sm text-red-400">Error: {error}</div>}
+      {unresolvedNames.length > 0 && (
+        <div className="mb-4 text-center text-sm text-yellow-500">
+          Could not recognize {unresolvedNames.length} item
+          {unresolvedNames.length === 1 ? "" : "s"}: {unresolvedNames.join(", ")}
+        </div>
+      )}
 
-        {unresolvedNames.length > 0 && (
-          <div className="mb-4 text-center text-sm text-yellow-500">
-            Could not recognize {unresolvedNames.length} item
-            {unresolvedNames.length === 1 ? "" : "s"}: {unresolvedNames.join(", ")}
-          </div>
-        )}
+      {rows.length > 0 && <ItemAppraisalTable rows={rows} />}
 
-        {rows.length > 0 && <ItemAppraisalTable rows={rows} />}
-
-        {!loading && fetchedAt && rows.length === 0 && !error && (
-          <div className="text-center text-sm text-zinc-500">
-            None of the pasted items could be recognized.
-          </div>
-        )}
-      </main>
-    </div>
+      {!loading && fetchedAt && rows.length === 0 && !error && (
+        <div className="text-center text-sm text-zinc-500">
+          None of the pasted items could be recognized.
+        </div>
+      )}
+    </Layout>
   );
 }
