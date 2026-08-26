@@ -53,6 +53,35 @@ export const DEFAULT_ACCOUNTING_SKILL_LEVEL = 5;
 /** Opportunities whose after-tax profit is this fraction (or less) of the sell price are noise. */
 const MIN_PROFIT_TO_SELL_PRICE_RATIO = 0.1;
 
+/**
+ * Each item's best opportunity is selected primarily by total profit (see
+ * {@link computeMarketOpportunityRows}), so only a handful of the highest pre-tax-profit
+ * candidates per item can possibly end up being picked. Resolving routes (ESI has no batch route
+ * endpoint — one HTTP request per system pair) for every candidate pairing is by far the biggest
+ * driver of rate limiting when scanning busy regions, so this narrows candidates down to the
+ * top-N per item by pre-tax profit *before* any per-candidate ESI calls (routes, names, etc.).
+ */
+const MAX_CANDIDATES_PER_TYPE = 3;
+
+/** Keeps only the top {@link MAX_CANDIDATES_PER_TYPE} candidates per item, ranked by pre-tax profit. */
+function keepTopCandidatesPerType(candidates: UnresolvedOpportunity[]): UnresolvedOpportunity[] {
+  const byType = new Map<number, UnresolvedOpportunity[]>();
+  for (const c of candidates) {
+    const list = byType.get(c.typeId);
+    if (list) list.push(c);
+    else byType.set(c.typeId, [c]);
+  }
+
+  const result: UnresolvedOpportunity[] = [];
+  for (const list of byType.values()) {
+    list.sort(
+      (a, b) => (b.buyPrice - b.sellPrice) * b.quantity - (a.buyPrice - a.sellPrice) * a.quantity,
+    );
+    result.push(...list.slice(0, MAX_CANDIDATES_PER_TYPE));
+  }
+  return result;
+}
+
 /** Orders within this fraction of a price band's anchor price are considered the same "stock level". */
 const STOCK_PRICE_DEVIATION = 0.05;
 
@@ -141,12 +170,8 @@ function takeFromLevel(
   return { quantity: taken, total, isNpc };
 }
 
-/** Builds every profitable (sell level, buy level) pairing for a single item type. */
-function buildOpportunities(
-  typeId: number,
-  sellLevels: StockLevel[],
-  buyLevels: StockLevel[],
-): {
+/** Pre-route-resolution candidate: enough info to compute pre-tax profit, but no jumps/names yet. */
+interface UnresolvedOpportunity {
   typeId: number;
   origin: { locationId: number; systemId: number };
   destination: { locationId: number; systemId: number };
@@ -155,17 +180,15 @@ function buildOpportunities(
   sellIsNpc: boolean;
   buyPrice: number;
   buyIsNpc: boolean;
-}[] {
-  const results: {
-    typeId: number;
-    origin: { locationId: number; systemId: number };
-    destination: { locationId: number; systemId: number };
-    quantity: number;
-    sellPrice: number;
-    sellIsNpc: boolean;
-    buyPrice: number;
-    buyIsNpc: boolean;
-  }[] = [];
+}
+
+/** Builds every profitable (sell level, buy level) pairing for a single item type. */
+function buildOpportunities(
+  typeId: number,
+  sellLevels: StockLevel[],
+  buyLevels: StockLevel[],
+): UnresolvedOpportunity[] {
+  const results: UnresolvedOpportunity[] = [];
 
   for (const sellLevel of sellLevels) {
     // A level's own weighted-average price is a reasonable band anchor for the "is this even
@@ -256,16 +279,7 @@ export async function fetchRawMarketOpportunities(
   }
 
   onProgress?.("Finding opportunities", 0, ordersByType.size);
-  const rawOpportunities: {
-    typeId: number;
-    origin: { locationId: number; systemId: number };
-    destination: { locationId: number; systemId: number };
-    quantity: number;
-    sellPrice: number;
-    sellIsNpc: boolean;
-    buyPrice: number;
-    buyIsNpc: boolean;
-  }[] = [];
+  const rawOpportunities: UnresolvedOpportunity[] = [];
   let done = 0;
   for (const [typeId, orders] of ordersByType) {
     const sellOrders = orders.filter((o) => !o.is_buy_order);
@@ -282,20 +296,25 @@ export async function fetchRawMarketOpportunities(
 
   if (rawOpportunities.length === 0) return [];
 
+  // Only the single best-by-profit candidate per item can end up in the final result, so route
+  // resolution (the biggest source of rate-limited ESI calls — one request per system pair, with
+  // no batch endpoint) only needs to happen for a handful of top candidates per item.
+  const candidates = keepTopCandidatesPerType(rawOpportunities);
+
   const locationIds = [
-    ...new Set(rawOpportunities.flatMap((o) => [o.origin.locationId, o.destination.locationId])),
+    ...new Set(candidates.flatMap((o) => [o.origin.locationId, o.destination.locationId])),
   ];
   const stationIds = locationIds.filter((id) => !isPlayerStructure(id));
 
   onProgress?.("Resolving stations & routes", 0, 1);
   const [stationNames, typeInfos] = await Promise.all([
     resolveStationNames(stationIds),
-    getTypeInfoBatch([...new Set(rawOpportunities.map((o) => o.typeId))]),
+    getTypeInfoBatch([...new Set(candidates.map((o) => o.typeId))]),
   ]);
 
   const systemPairs = [
     ...new Map(
-      rawOpportunities.map((o) => [
+      candidates.map((o) => [
         `${o.origin.systemId}-${o.destination.systemId}`,
         { origin: o.origin.systemId, destination: o.destination.systemId },
       ]),
@@ -317,10 +336,10 @@ export async function fetchRawMarketOpportunities(
   }
 
   const systemIds = [
-    ...new Set(rawOpportunities.flatMap((o) => [o.origin.systemId, o.destination.systemId])),
+    ...new Set(candidates.flatMap((o) => [o.origin.systemId, o.destination.systemId])),
   ];
   const [volumesByType, securityBySystem] = await Promise.all([
-    getTypeVolumeBatch([...new Set(rawOpportunities.map((o) => o.typeId))]),
+    getTypeVolumeBatch([...new Set(candidates.map((o) => o.typeId))]),
     getSystemSecurityBatch(systemIds),
   ]);
 
@@ -332,7 +351,7 @@ export async function fetchRawMarketOpportunities(
     securityStatus: securityBySystem.get(systemId) ?? 0,
   });
 
-  return rawOpportunities.map((o) => {
+  return candidates.map((o) => {
     const volume = volumesByType.get(o.typeId) ?? 0;
     const jumps = jumpsByPair.get(`${o.origin.systemId}-${o.destination.systemId}`) ?? 0;
     return {
