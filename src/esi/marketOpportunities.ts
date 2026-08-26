@@ -360,10 +360,13 @@ export async function fetchRawMarketOpportunities(
 export function computeMarketOpportunityRows(
   raw: RawMarketOpportunity[],
   taxRate: number,
+  includeNpcToNpc = true,
 ): MarketOpportunityRow[] {
   const rows: MarketOpportunityRow[] = [];
 
   for (const o of raw) {
+    if (!includeNpcToNpc && o.sellIsNpc && o.buyIsNpc) continue;
+
     const sellTotal = o.sellPrice * o.quantity;
     const buyTotal = o.buyPrice * o.quantity;
     const profitTotal = buyTotal * (1 - taxRate) - sellTotal;

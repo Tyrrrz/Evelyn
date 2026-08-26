@@ -9,7 +9,11 @@ import {
   fetchRawMarketOpportunities,
 } from "../esi/marketOpportunities.ts";
 import { DEFAULT_REGION_ID, getRegions } from "../esi/regions.ts";
-import { numberSearchParam, useSearchParamState } from "../hooks/useSearchParamState.ts";
+import {
+  boolSearchParam,
+  numberSearchParam,
+  useSearchParamState,
+} from "../hooks/useSearchParamState.ts";
 
 function makeRegionParam(regions: { regionId: number }[]) {
   return {
@@ -116,6 +120,11 @@ export default function MarketOpportunitiesPage() {
   const [stage, setStage] = useState<{ label: string; done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [accountingSkillLevel, setAccountingSkillLevel] = useState(DEFAULT_ACCOUNTING_SKILL_LEVEL);
+  const [includeNpcToNpc, setIncludeNpcToNpc] = useSearchParamState(
+    "includeNpcToNpc",
+    true,
+    boolSearchParam,
+  );
 
   const rows = useMemo(
     () =>
@@ -123,8 +132,9 @@ export default function MarketOpportunitiesPage() {
         rawOpportunities,
         ACCOUNTING_TAX_RATES[accountingSkillLevel] ??
           ACCOUNTING_TAX_RATES[DEFAULT_ACCOUNTING_SKILL_LEVEL]!,
+        includeNpcToNpc,
       ),
-    [rawOpportunities, accountingSkillLevel],
+    [rawOpportunities, accountingSkillLevel, includeNpcToNpc],
   );
 
   const loadOpportunities = async (region1: number, region2: number) => {
@@ -209,6 +219,16 @@ export default function MarketOpportunitiesPage() {
           Set both regions the same to only look for opportunities within a single region. Scanning
           busy regions (e.g. The Forge) fetches every open order in them and can take a while.
         </p>
+        <label className="flex items-center gap-2 text-sm text-zinc-300">
+          <input
+            type="checkbox"
+            checked={includeNpcToNpc}
+            disabled={loading}
+            onChange={(e) => setIncludeNpcToNpc(e.target.checked)}
+            className="rounded border-zinc-600 bg-zinc-800"
+          />
+          Include NPC-to-NPC opportunities
+        </label>
       </div>
 
       {fetchedAt && (
