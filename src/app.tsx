@@ -3,6 +3,7 @@ import Analytics from "./components/analytics.tsx";
 import HomePage from "./pages/homePage.tsx";
 import ItemAppraisalPage from "./pages/itemAppraisalPage.tsx";
 import LpStorePage from "./pages/lpStorePage.tsx";
+import MiningPricesPage from "./pages/miningPricesPage.tsx";
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/lp" element={<LpStorePage />} />
         <Route path="/appraisal" element={<ItemAppraisalPage />} />
+        <Route path="/mining" element={<MiningPricesPage />} />
       </Routes>
     </>
   );

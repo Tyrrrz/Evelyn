@@ -29,6 +29,15 @@ export default function HomePage() {
             Paste a list of items from your inventory to get their Buy/Sell prices and totals
           </span>
         </Link>
+        <Link
+          to="/mining"
+          className="flex flex-col gap-1 rounded-lg border border-zinc-800 bg-zinc-900 p-5 transition-colors hover:border-amber-500 hover:bg-zinc-800"
+        >
+          <span className="font-semibold text-zinc-100">Mining Profits</span>
+          <span className="text-sm text-zinc-500">
+            Buy/Sell prices per m³ (and per unit) for all ore, gas and ice types in a region
+          </span>
+        </Link>
       </div>
     </div>
   );
