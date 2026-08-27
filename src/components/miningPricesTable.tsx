@@ -137,7 +137,11 @@ function MiningTable({
   const buyRange = columnRange(rows, "buyPricePerM3");
 
   return (
-    <details className="mb-4" open={open} onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
+    <details
+      className="mb-4"
+      open={open}
+      onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
+    >
       <summary className="mb-2 cursor-pointer list-inside marker:text-zinc-500">
         <h2 className="inline text-lg font-semibold text-zinc-100">{CATEGORY_LABELS[category]}</h2>
       </summary>
