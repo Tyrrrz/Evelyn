@@ -127,6 +127,7 @@ function MiningTable({
   sortDir: SortDir;
   onSort: (k: SortKey) => void;
 }) {
+  const [open, setOpen] = useState(false);
   const sorted = sortRows(rows, sortKey, sortDir);
   const thProps = { sortKey, sortDir, onSort };
 
@@ -136,9 +137,9 @@ function MiningTable({
   const buyRange = columnRange(rows, "buyPricePerM3");
 
   return (
-    <details className="mb-4" open>
-      <summary className="mb-2 cursor-pointer list-inside text-lg font-semibold text-zinc-100 marker:text-zinc-500">
-        {CATEGORY_LABELS[category]}
+    <details className="mb-4" open={open} onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
+      <summary className="mb-2 cursor-pointer list-inside marker:text-zinc-500">
+        <h2 className="inline text-lg font-semibold text-zinc-100">{CATEGORY_LABELS[category]}</h2>
       </summary>
       <div className="mt-2 overflow-x-auto rounded border border-zinc-800">
         <table className="min-w-full text-sm">
