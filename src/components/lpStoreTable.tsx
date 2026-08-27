@@ -256,7 +256,7 @@ export default function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
                         }
                       >
                         {requiredItemsAllUnpriced
-                          ? "+ ??? ISK in items"
+                          ? "+ — in items"
                           : `+ ${fmt(row.requiredItemsIskCost)}${requiredItemsPriceUnknown ? "?" : ""} ISK in items`}
                       </div>
                     )}
@@ -270,7 +270,7 @@ export default function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
                         }
                       >
                         {blueprintMaterialsAllUnpriced
-                          ? "+ ??? ISK in materials"
+                          ? "+ — in materials"
                           : `+ ${fmt(row.blueprintMaterialsIskCost)}${blueprintMaterialsPriceUnknown ? "?" : ""} ISK in materials`}
                       </div>
                     )}

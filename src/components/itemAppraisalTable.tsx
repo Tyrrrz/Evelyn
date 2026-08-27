@@ -79,7 +79,7 @@ function columnRange(rows: AppraisalRow[], key: SortKey): { min: number; max: nu
 }
 
 function formatIsk(value: number | null): string {
-  return value === null ? "??? ISK" : `${fmt(value)} ISK`;
+  return value === null ? "—" : `${fmt(value)} ISK`;
 }
 
 function summarizeTotals(
@@ -202,7 +202,7 @@ export default function ItemAppraisalTable({ rows }: { rows: AppraisalRow[] }) {
               <div className="flex items-center gap-1">
                 <span>
                   {totalSell.allUnknown
-                    ? "??? ISK"
+                    ? "—"
                     : `${fmt(totalSell.value)}${totalSell.hasUnknown ? "+" : ""} ISK`}
                 </span>
                 {totalSell.hasUnknown && (
@@ -223,7 +223,7 @@ export default function ItemAppraisalTable({ rows }: { rows: AppraisalRow[] }) {
               <div className="flex items-center gap-1">
                 <span>
                   {totalBuy.allUnknown
-                    ? "??? ISK"
+                    ? "—"
                     : `${fmt(totalBuy.value)}${totalBuy.hasUnknown ? "+" : ""} ISK`}
                 </span>
                 {totalBuy.hasUnknown && (
