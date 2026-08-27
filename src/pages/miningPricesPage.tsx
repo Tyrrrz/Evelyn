@@ -1,17 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import Layout from "../components/layout.tsx";
-import MiningPricesTable, { categorySectionId } from "../components/miningPricesTable.tsx";
-import type { MiningCategory } from "../esi/mining.ts";
+import MiningPricesTable from "../components/miningPricesTable.tsx";
 import type { MiningPriceRow } from "../esi/miningPrices.ts";
 import { fetchMiningPriceRows } from "../esi/miningPrices.ts";
 import { DEFAULT_REGION_ID, getRegions } from "../esi/regions.ts";
 import { numberSearchParam, useSearchParamState } from "../hooks/useSearchParamState.ts";
-
-const CATEGORIES: { category: MiningCategory; label: string }[] = [
-  { category: "ore", label: "Ore" },
-  { category: "gas", label: "Gas" },
-  { category: "ice", label: "Ice" },
-];
 
 export default function MiningPricesPage() {
   const regions = getRegions();
@@ -100,23 +93,6 @@ export default function MiningPricesPage() {
       {fetchedAt && (
         <div className="mb-2 text-center text-xs text-zinc-500">
           {rows.length} items • fetched {fetchedAt.toLocaleString()}
-        </div>
-      )}
-
-      {!loading && fetchedAt && rows.length > 0 && (
-        <div className="mb-4 flex items-center justify-center gap-2 text-xs text-zinc-500">
-          <span>Jump to:</span>
-          {CATEGORIES.filter(({ category }) => rows.some((r) => r.category === category)).map(
-            ({ category, label }) => (
-              <a
-                key={category}
-                href={`#${categorySectionId(category)}`}
-                className="rounded border border-zinc-700 px-2 py-1 text-zinc-300 hover:border-amber-500 hover:text-amber-400"
-              >
-                {label}
-              </a>
-            ),
-          )}
         </div>
       )}
 

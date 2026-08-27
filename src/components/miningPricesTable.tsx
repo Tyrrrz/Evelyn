@@ -12,11 +12,6 @@ const CATEGORY_LABELS: Record<MiningCategory, string> = {
   ice: "Ice",
 };
 
-/** DOM id for a category's table section, used by the "Jump to" nav. */
-export function categorySectionId(category: MiningCategory): string {
-  return `mining-${category}`;
-}
-
 function sortRows(rows: MiningPriceRow[], key: SortKey, dir: SortDir): MiningPriceRow[] {
   return [...rows].sort((a, b) => {
     const av = a[key];
@@ -132,6 +127,7 @@ function MiningTable({
   sortDir: SortDir;
   onSort: (k: SortKey) => void;
 }) {
+  const [open, setOpen] = useState(false);
   const sorted = sortRows(rows, sortKey, sortDir);
   const thProps = { sortKey, sortDir, onSort };
 
@@ -141,9 +137,15 @@ function MiningTable({
   const buyRange = columnRange(rows, "buyPricePerM3");
 
   return (
-    <div id={categorySectionId(category)} className="mb-8 scroll-mt-4">
-      <h2 className="mb-2 text-lg font-semibold text-zinc-100">{CATEGORY_LABELS[category]}</h2>
-      <div className="overflow-x-auto rounded border border-zinc-800">
+    <details
+      className="mb-4"
+      open={open}
+      onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
+    >
+      <summary className="mb-2 cursor-pointer list-inside marker:text-zinc-500">
+        <h2 className="inline text-lg font-semibold text-zinc-100">{CATEGORY_LABELS[category]}</h2>
+      </summary>
+      <div className="mt-2 overflow-x-auto rounded border border-zinc-800">
         <table className="min-w-full text-sm">
           <thead className="bg-zinc-800 text-zinc-300">
             <tr>
@@ -177,7 +179,7 @@ function MiningTable({
           </tbody>
         </table>
       </div>
-    </div>
+    </details>
   );
 }
 
