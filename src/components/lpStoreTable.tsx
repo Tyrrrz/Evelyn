@@ -116,7 +116,7 @@ function IskLpCell({
           </span>
         )}
       </div>
-      <div className="text-xs text-zinc-500">{fmt(bestPrice)} ISK</div>
+      {bestPrice !== null && <div className="text-xs text-zinc-500">{fmt(bestPrice)} ISK</div>}
     </td>
   );
 }
