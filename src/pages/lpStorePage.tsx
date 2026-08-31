@@ -117,7 +117,9 @@ export default function LpStorePage() {
     // Blueprint reward offers are only ever included in `rows` when the previous fetch requested
     // them, so unchecking never requires a reload (blueprint rows are simply filtered out below),
     // and checking only requires one if the currently-loaded data doesn't already have them.
-    const hasBlueprintRows = rows.some((row) => row.blueprintMaterials.length > 0);
+    const hasBlueprintRows = rows.some(
+      (row) => row.blueprintMaterials.length > 0 || row.typeName.endsWith(" Blueprint"),
+    );
     if (checked && !hasBlueprintRows && selectedCorp && fetchedAt) {
       void loadLpStoreData(selectedCorp, regionId, checked);
     }
