@@ -113,12 +113,22 @@ export default function LpStorePage() {
     if (loading) return;
 
     setIncludeBlueprints(checked);
-    if (selectedCorp && fetchedAt) void loadLpStoreData(selectedCorp, regionId, checked);
+
+    // Blueprint reward offers are only ever included in `rows` when the previous fetch requested
+    // them, so unchecking never requires a reload (blueprint rows are simply filtered out below),
+    // and checking only requires one if the currently-loaded data doesn't already have them.
+    const hasBlueprintRows = rows.some(
+      (row) => row.blueprintMaterials.length > 0 || row.typeName.endsWith(" Blueprint"),
+    );
+    if (checked && !hasBlueprintRows && selectedCorp && fetchedAt) {
+      void loadLpStoreData(selectedCorp, regionId, checked);
+    }
   };
 
   const filteredRows = rows.filter(
     (row) =>
       (includeOtherItems || row.requiredItems.length === 0) &&
+      (includeBlueprints || row.blueprintMaterials.length === 0) &&
       (includeVolatileMarkets || !row.isMarketVolatile) &&
       (includeUnpricedItems ||
         (row.requiredItems.every((i) => i.sellPrice !== null) &&
