@@ -251,7 +251,8 @@ export default function SigTrackerPage() {
           )}
 
           {trimmedSystemName && currentSignatures.length > 0 && (
-            <SigTrackerTable
+<SigTrackerTable
+              key={trimmedSystemName}
               rows={currentSignatures}
               onNoteChange={(sigId, note) => {
                 setStore(setSignatureNote(store, trimmedSystemName, sigId, note));
