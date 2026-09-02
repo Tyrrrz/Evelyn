@@ -168,7 +168,11 @@ function isUnknownSignatureField(value: string): boolean {
   return /^unknown$/iu.test(value);
 }
 
-function mergeImportedSignature(prev: SignatureRecord, next: ParsedSignature, updatedAt: string): SignatureRecord {
+function mergeImportedSignature(
+  prev: SignatureRecord,
+  next: ParsedSignature,
+  updatedAt: string,
+): SignatureRecord {
   return {
     ...prev,
     ...next,
