@@ -164,6 +164,26 @@ function fieldsEqual(a: SignatureRecord, b: ParsedSignature): boolean {
   );
 }
 
+function isUnknownSignatureField(value: string): boolean {
+  return /^unknown$/iu.test(value);
+}
+
+function mergeImportedSignature(prev: SignatureRecord, next: ParsedSignature, updatedAt: string): SignatureRecord {
+  return {
+    ...prev,
+    ...next,
+    sigKind:
+      isUnknownSignatureField(next.sigKind) && !isUnknownSignatureField(prev.sigKind)
+        ? prev.sigKind
+        : next.sigKind,
+    name:
+      isUnknownSignatureField(next.name) && !isUnknownSignatureField(prev.name)
+        ? prev.name
+        : next.name,
+    updatedAt,
+  };
+}
+
 /**
  * Merges a freshly parsed signature list into the store for the given system: new signatures are
  * added, known ones have their scan data refreshed (while preserving notes), and none are
@@ -187,12 +207,15 @@ export function importSignatures(
     if (!prev) {
       signatures[p.id] = { ...p, note: "", firstSeenAt: now, updatedAt: now };
       diff.added.push(p.id);
-    } else if (!fieldsEqual(prev, p)) {
-      signatures[p.id] = { ...prev, ...p, updatedAt: now };
-      diff.updated.push(p.id);
     } else {
-      signatures[p.id] = prev;
-      diff.unchanged.push(p.id);
+      const merged = mergeImportedSignature(prev, p, now);
+      if (!fieldsEqual(merged, prev)) {
+        signatures[p.id] = merged;
+        diff.updated.push(p.id);
+      } else {
+        signatures[p.id] = prev;
+        diff.unchanged.push(p.id);
+      }
     }
   }
 
