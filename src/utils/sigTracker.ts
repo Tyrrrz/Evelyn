@@ -43,6 +43,7 @@ export interface ImportDiff {
 
 const STORAGE_KEY = "evelyn:sigTracker";
 const EXPIRATION_MS = 365 * 24 * 60 * 60 * 1000;
+let storageError: string | null = null;
 
 /**
  * Splits a copy-pasted probe scanner line into fields. The game separates columns with tabs when
@@ -111,7 +112,17 @@ function pruneExpired(store: SigTrackerStore): SigTrackerStore {
 }
 
 function saveStore(store: SigTrackerStore): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    storageError = null;
+  } catch (error) {
+    storageError = error instanceof Error ? error.message : "Unknown storage error";
+  }
+}
+
+/** Returns the latest storage error, if any. */
+export function getStorageError(): string | null {
+  return storageError;
 }
 
 /** Loads the store from localStorage, pruning (and persisting the removal of) expired systems. */
@@ -120,8 +131,10 @@ export function loadStore(): SigTrackerStore {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     parsed = raw ? JSON.parse(raw) : null;
-  } catch {
+    storageError = null;
+  } catch (error) {
     parsed = null;
+    storageError = error instanceof Error ? error.message : "Failed to read from browser storage";
   }
 
   const store = isSigTrackerStore(parsed) ? parsed : { systems: {} };

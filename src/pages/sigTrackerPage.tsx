@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Layout from "../components/layout.tsx";
 import SigTrackerTable from "../components/sigTrackerTable.tsx";
 import type { ImportDiff, SigTrackerStore } from "../utils/sigTracker.ts";
 import {
   getSignatures,
+  getStorageError,
   getSystemNames,
   importSignatures,
   loadStore,
@@ -107,6 +108,7 @@ export default function SigTrackerPage() {
   const [systemName, setSystemName] = useState(() => systemNames[0] ?? "");
   const [text, setText] = useState("");
   const [diff, setDiff] = useState<ImportDiff | null>(null);
+  const reportedStorageErrorRef = useRef<string | null>(null);
 
   const trimmedSystemName = systemName.trim();
   const currentSignatures = useMemo(
@@ -114,6 +116,16 @@ export default function SigTrackerPage() {
     [store, trimmedSystemName],
   );
   const parsedCount = useMemo(() => parseSignatureList(text).length, [text]);
+
+  useEffect(() => {
+    const error = getStorageError();
+    if (!error || error === reportedStorageErrorRef.current) return;
+
+    alert(
+      `Signature Tracker couldn't access browser storage. Data changes will only persist for this session.\n\nDetails: ${error}`,
+    );
+    reportedStorageErrorRef.current = error;
+  }, [store]);
 
   const handleImport = () => {
     if (!trimmedSystemName) return;
