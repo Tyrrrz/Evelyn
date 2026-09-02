@@ -263,7 +263,7 @@ export default function SigTrackerPage() {
           )}
 
           {trimmedSystemName && currentSignatures.length > 0 && (
-<SigTrackerTable
+            <SigTrackerTable
               key={trimmedSystemName}
               rows={currentSignatures}
               onNoteChange={(sigId, note) => {
