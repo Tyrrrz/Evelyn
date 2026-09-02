@@ -133,8 +133,8 @@ export function loadStore(): SigTrackerStore {
     parsed = raw ? JSON.parse(raw) : null;
     storageError = null;
   } catch (error) {
-    parsed = null;
     storageError = error instanceof Error ? error.message : "Failed to read from browser storage";
+    return { systems: {} };
   }
 
   const store = isSigTrackerStore(parsed) ? parsed : { systems: {} };
