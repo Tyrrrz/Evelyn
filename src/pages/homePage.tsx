@@ -38,6 +38,15 @@ export default function HomePage() {
             Buy/Sell prices per m³ (and per unit) for all ore, gas and ice types in a region
           </span>
         </Link>
+        <Link
+          to="/signatures"
+          className="flex flex-col gap-1 rounded-lg border border-zinc-800 bg-zinc-900 p-5 transition-colors hover:border-amber-500 hover:bg-zinc-800"
+        >
+          <span className="font-semibold text-zinc-100">Signature Tracker</span>
+          <span className="text-sm text-zinc-500">
+            Keep track of cosmic signatures and anomalies between game sessions
+          </span>
+        </Link>
       </div>
     </div>
   );
