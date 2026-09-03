@@ -68,7 +68,7 @@ export function getBlueprintInfo(blueprintTypeId: number): BlueprintInfo | null 
 // Long-lived in-memory cache for type info (names don't change often)
 const typeInfoCache = new Map<number, TypeInfo>();
 
-async function esiGet<T>(path: string, cacheable = false): Promise<T> {
+async function esiGet<T>(path: string, cacheable = false, notFoundValue?: T): Promise<T> {
   const url = `${ESI_BASE}${path}`;
   const init: RequestInit = cacheable ? { cache: "default" } : { cache: "no-store" };
   const res = await fetch(url, {
@@ -76,6 +76,10 @@ async function esiGet<T>(path: string, cacheable = false): Promise<T> {
     headers: { Accept: "application/json" },
   });
   if (!res.ok) {
+    // A 404 on a market endpoint means the type isn't currently marketable in this region (e.g.
+    // non-tradable reward items like containers) rather than an actual error, so callers that
+    // pass `notFoundValue` want that treated as "no data" instead of a thrown error.
+    if (res.status === 404 && notFoundValue !== undefined) return notFoundValue;
     throw new Error(`ESI ${res.status}: ${url}`);
   }
   return res.json() as Promise<T>;
@@ -95,14 +99,23 @@ async function esiPost<T>(path: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-async function esiGetAllPages<T>(path: string, extraSep = "&"): Promise<T[]> {
+async function esiGetAllPages<T>(
+  path: string,
+  extraSep = "&",
+  treatNotFoundAsEmpty = false,
+): Promise<T[]> {
   const url = `${ESI_BASE}${path}`;
   // Price data is never cached
   const res = await fetch(url, {
     cache: "no-store",
     headers: { Accept: "application/json" },
   });
-  if (!res.ok) throw new Error(`ESI ${res.status}: ${url}`);
+  if (!res.ok) {
+    // A 404 here means the type isn't currently marketable in this region (e.g. non-tradable
+    // reward items like containers) rather than an actual error.
+    if (treatNotFoundAsEmpty && res.status === 404) return [];
+    throw new Error(`ESI ${res.status}: ${url}`);
+  }
   const totalPages = parseInt(res.headers.get("X-Pages") ?? "1", 10);
   const firstPage = (await res.json()) as T[];
   if (totalPages <= 1) return firstPage;
@@ -131,16 +144,18 @@ export async function getLpOffers(corporationId: number): Promise<LpOffer[]> {
 }
 
 export async function getMarketOrders(typeId: number, regionId: number): Promise<MarketOrder[]> {
-  // Market orders: always fresh
-  return esiGetAllPages<MarketOrder>(`/markets/${regionId}/orders/?type_id=${typeId}`, "&");
+  // Market orders: always fresh. A 404 means the type isn't marketable in this region (e.g.
+  // container/crate reward items that can't themselves be bought or sold) — treat as no orders.
+  return esiGetAllPages<MarketOrder>(`/markets/${regionId}/orders/?type_id=${typeId}`, "&", true);
 }
 
 export async function getMarketHistory(
   typeId: number,
   regionId: number,
 ): Promise<MarketHistoryEntry[]> {
-  // History updates once a day — cacheable
-  return esiGet<MarketHistoryEntry[]>(`/markets/${regionId}/history/?type_id=${typeId}`, true);
+  // History updates once a day — cacheable. A 404 means the type isn't marketable in this
+  // region, so treat it as no history rather than an error.
+  return esiGet<MarketHistoryEntry[]>(`/markets/${regionId}/history/?type_id=${typeId}`, true, []);
 }
 
 export async function getTypeInfo(typeId: number): Promise<TypeInfo> {
