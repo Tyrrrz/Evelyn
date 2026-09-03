@@ -131,7 +131,10 @@ export default function LpStorePage() {
       (includeBlueprints || row.blueprintMaterials.length === 0) &&
       (includeVolatileMarkets || !row.isMarketVolatile) &&
       (includeUnpricedItems ||
-        (row.requiredItems.every((i) => i.sellPrice !== null) &&
+        // The reward item itself may have no market data at all (e.g. non-marketable container
+        // reward items, which can't be bought or sold directly), which is also an "unpriced" item.
+        ((row.bestBuy !== null || row.bestSell !== null) &&
+          row.requiredItems.every((i) => i.sellPrice !== null) &&
           row.blueprintMaterials.every((i) => i.sellPrice !== null))),
   );
 
