@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import AutocompleteSelect from "../components/autocompleteSelect.tsx";
 import Layout from "../components/layout.tsx";
 import SigTrackerTable from "../components/sigTrackerTable.tsx";
+import { getSolarSystems } from "../esi/systems.ts";
 import type { ImportDiff, SigTrackerStore } from "../utils/sigTracker.ts";
 import {
   getSignatures,
@@ -115,6 +117,10 @@ export default function SigTrackerPage() {
     () => getSignatures(store.systems[trimmedSystemName]),
     [store, trimmedSystemName],
   );
+  const allSystems = useMemo(
+    () => getSolarSystems().map((s) => ({ value: s.name, label: s.name })),
+    [],
+  );
   const parsedCount = useMemo(() => parseSignatureList(text).length, [text]);
 
   useEffect(() => {
@@ -204,16 +210,16 @@ export default function SigTrackerPage() {
               >
                 System
               </label>
-              <input
+              <AutocompleteSelect
                 id={SYSTEM_INPUT_ID}
-                type="text"
                 value={systemName}
-                onChange={(e) => {
-                  setSystemName(e.target.value);
+                onChange={(name) => {
+                  setSystemName(name);
                   setDiff(null);
                 }}
+                options={allSystems}
                 placeholder="e.g. Jita"
-                className="w-full rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                className="w-full"
               />
             </div>
 
