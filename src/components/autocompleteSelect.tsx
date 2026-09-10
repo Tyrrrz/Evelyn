@@ -115,7 +115,7 @@ export default function AutocompleteSelect<T extends string | number>({
             return;
           }
 
-          if (e.key === "Enter") {
+          if (e.key === "Enter" && isOpen) {
             e.preventDefault();
             if (filteredOptions[activeIndex]) {
               selectOption(filteredOptions[activeIndex]);
