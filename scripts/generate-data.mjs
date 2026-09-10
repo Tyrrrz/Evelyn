@@ -13,6 +13,7 @@ import { generate as generateBlueprintData } from "./generate-blueprint-data.mjs
 import { generate as generateMiningData } from "./generate-mining-data.mjs";
 import { generate as generateNpcCorporations } from "./generate-npc-corporations.mjs";
 import { generate as generateRegionData } from "./generate-region-data.mjs";
+import { generate as generateSystemData } from "./generate-system-data.mjs";
 import { downloadSdeZip } from "./sde.mjs";
 
 async function main() {
@@ -21,6 +22,7 @@ async function main() {
   await generateNpcCorporations(zipBuffer);
   await generateBlueprintData(zipBuffer);
   await generateRegionData(zipBuffer);
+  await generateSystemData(zipBuffer);
   await generateMiningData(zipBuffer);
 }
 
