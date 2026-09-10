@@ -46,7 +46,10 @@ export default function AutocompleteSelect<T extends string | number>({
   className?: string;
   onChange: (value: T) => void;
 }) {
-  const selectedOption = useMemo(() => options.find((o) => o.value === value) ?? null, [options, value]);
+  const selectedOption = useMemo(
+    () => options.find((o) => o.value === value) ?? null,
+    [options, value],
+  );
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -141,7 +144,9 @@ export default function AutocompleteSelect<T extends string | number>({
                   selectOption(option);
                 }}
                 className={`w-full px-3 py-2 text-left text-sm ${
-                  index === activeIndex ? "bg-amber-500/20 text-amber-300" : "text-zinc-100 hover:bg-zinc-800"
+                  index === activeIndex
+                    ? "bg-amber-500/20 text-amber-300"
+                    : "text-zinc-100 hover:bg-zinc-800"
                 }`}
               >
                 {option.label}

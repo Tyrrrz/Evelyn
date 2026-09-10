@@ -12,7 +12,8 @@ import { downloadSdeZip, extractYamlFile, isMainModule } from "./sde.mjs";
 const OUTPUT_PATH = fileURLToPath(new URL("../src/esi/systemData.json", import.meta.url));
 
 function resolveName(record) {
-  const candidate = record.name?.en ?? record.solarSystemNameID ?? record.solarSystemName ?? record.name;
+  const candidate =
+    record.name?.en ?? record.solarSystemNameID ?? record.solarSystemName ?? record.name;
   return typeof candidate === "string" ? candidate : candidate?.en;
 }
 

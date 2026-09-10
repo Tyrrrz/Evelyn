@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import AutocompleteSelect from "../components/autocompleteSelect.tsx";
-import { getSolarSystems } from "../esi/systems.ts";
 import Layout from "../components/layout.tsx";
 import SigTrackerTable from "../components/sigTrackerTable.tsx";
+import { getSolarSystems } from "../esi/systems.ts";
 import type { ImportDiff, SigTrackerStore } from "../utils/sigTracker.ts";
 import {
   getSignatures,

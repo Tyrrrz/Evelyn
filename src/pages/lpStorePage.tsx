@@ -147,7 +147,10 @@ export default function LpStorePage() {
             <AutocompleteSelect
               value={selectedCorp ? String(selectedCorp.corporation_id) : ""}
               onChange={(nextCorpId) => setCorpId(Number(nextCorpId))}
-              options={corporations.map((c) => ({ value: String(c.corporation_id), label: c.name }))}
+              options={corporations.map((c) => ({
+                value: String(c.corporation_id),
+                label: c.name,
+              }))}
               placeholder="Select a corporation…"
               disabled={loading}
               className="w-64"
