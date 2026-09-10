@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import AutocompleteSelect from "../components/autocompleteSelect.tsx";
 import Layout from "../components/layout.tsx";
 import SigTrackerTable from "../components/sigTrackerTable.tsx";
 import type { ImportDiff, SigTrackerStore } from "../utils/sigTracker.ts";
@@ -204,16 +205,16 @@ export default function SigTrackerPage() {
               >
                 System
               </label>
-              <input
+              <AutocompleteSelect
                 id={SYSTEM_INPUT_ID}
-                type="text"
-                value={systemName}
-                onChange={(e) => {
-                  setSystemName(e.target.value);
+                value={trimmedSystemName || null}
+                onChange={(nextSystemName) => {
+                  setSystemName(nextSystemName);
                   setDiff(null);
                 }}
+                options={systemNames.map((name) => ({ value: name, label: name }))}
                 placeholder="e.g. Jita"
-                className="w-full rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                className="w-full"
               />
             </div>
 

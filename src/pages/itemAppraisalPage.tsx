@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import AutocompleteSelect from "../components/autocompleteSelect.tsx";
 import ItemAppraisalTable from "../components/itemAppraisalTable.tsx";
 import Layout from "../components/layout.tsx";
 import type { AppraisalItem, AppraisalRow } from "../esi/itemAppraisal.ts";
@@ -44,19 +45,14 @@ function RegionSelect({
       <label htmlFor={REGION_SELECT_ID} className="mb-1 block text-sm font-medium text-zinc-400">
         Market Region
       </label>
-      <select
+      <AutocompleteSelect
         id={REGION_SELECT_ID}
         value={regionId}
-        onChange={(e) => setRegionId(Number(e.target.value))}
+        onChange={setRegionId}
+        options={regions.map((r) => ({ value: r.regionId, label: r.name }))}
         disabled={disabled}
-        className="w-64 rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {regions.map((r) => (
-          <option key={r.regionId} value={r.regionId}>
-            {r.name}
-          </option>
-        ))}
-      </select>
+        className="w-64"
+      />
     </div>
   );
 }
