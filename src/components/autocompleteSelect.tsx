@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface SelectOption<T extends string | number> {
   value: T;
@@ -53,6 +53,7 @@ export default function AutocompleteSelect<T extends string | number>({
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const activeOptionRef = useRef<HTMLButtonElement | null>(null);
   const selectedLabel = selectedOption?.label ?? "";
 
   const filteredOptions = useMemo(() => {
@@ -76,6 +77,11 @@ export default function AutocompleteSelect<T extends string | number>({
     setIsOpen(false);
     setActiveIndex(0);
   };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    activeOptionRef.current?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex, isOpen]);
 
   return (
     <div className={`relative ${className}`}>
@@ -139,6 +145,7 @@ export default function AutocompleteSelect<T extends string | number>({
             <li key={String(option.value)}>
               <button
                 type="button"
+                ref={index === activeIndex ? activeOptionRef : null}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   selectOption(option);
