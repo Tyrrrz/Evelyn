@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 interface SelectOption<T extends string | number> {
   value: T;
@@ -47,13 +47,10 @@ export default function AutocompleteSelect<T extends string | number>({
   onChange: (value: T) => void;
 }) {
   const selectedOption = useMemo(() => options.find((o) => o.value === value) ?? null, [options, value]);
-  const [query, setQuery] = useState(selectedOption?.label ?? "");
+  const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-
-  useEffect(() => {
-    setQuery(selectedOption?.label ?? "");
-  }, [selectedOption]);
+  const selectedLabel = selectedOption?.label ?? "";
 
   const filteredOptions = useMemo(() => {
     const trimmedQuery = query.trim();
@@ -66,13 +63,13 @@ export default function AutocompleteSelect<T extends string | number>({
 
   const selectOption = (option: SelectOption<T>) => {
     onChange(option.value);
-    setQuery(option.label);
+    setQuery("");
     setIsOpen(false);
     setActiveIndex(0);
   };
 
   const restoreSelected = () => {
-    setQuery(selectedOption?.label ?? "");
+    setQuery("");
     setIsOpen(false);
     setActiveIndex(0);
   };
@@ -82,11 +79,12 @@ export default function AutocompleteSelect<T extends string | number>({
       <input
         id={id}
         type="text"
-        value={query}
+        value={isOpen ? query : selectedLabel}
         disabled={disabled}
         autoComplete="off"
         placeholder={placeholder}
         onFocus={() => {
+          setQuery(selectedLabel);
           setIsOpen(true);
           setActiveIndex(0);
         }}
