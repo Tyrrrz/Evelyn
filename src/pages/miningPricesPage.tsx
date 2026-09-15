@@ -62,7 +62,13 @@ export default function MiningPricesPage() {
       subtitle="Buy/Sell prices for all ore, gas and ice types (and their compressed forms) in a region"
     >
       <div className="mb-4 flex flex-col items-center gap-2">
-        <div className="flex flex-wrap items-end justify-center gap-2">
+        <form
+          className="flex flex-wrap items-end justify-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSearch();
+          }}
+        >
           <div>
             <label className="mb-1 block text-sm font-medium text-zinc-400">Market Region</label>
             <AutocompleteSelect
@@ -74,8 +80,7 @@ export default function MiningPricesPage() {
             />
           </div>
           <button
-            type="button"
-            onClick={handleSearch}
+            type="submit"
             disabled={loading}
             title="Refresh"
             aria-label="Refresh"
@@ -83,7 +88,7 @@ export default function MiningPricesPage() {
           >
             Refresh
           </button>
-        </div>
+        </form>
       </div>
 
       {fetchedAt && (
