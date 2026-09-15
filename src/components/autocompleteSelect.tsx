@@ -121,7 +121,7 @@ export default function AutocompleteSelect<T extends string | number>({
             return;
           }
 
-          if (e.key === "Enter" && isOpen) {
+          if (e.key === "Enter" && isOpen && filteredOptions.length > 0) {
             e.preventDefault();
             if (filteredOptions[activeIndex]) {
               selectOption(filteredOptions[activeIndex]);
@@ -130,6 +130,9 @@ export default function AutocompleteSelect<T extends string | number>({
             }
             return;
           }
+
+          // No dropdown is shown (e.g. no matches, or not focused into the list yet), so let
+          // Enter bubble up to the surrounding form to trigger its submit behavior instead.
 
           if (e.key === "Escape") {
             e.preventDefault();

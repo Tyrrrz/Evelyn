@@ -141,7 +141,13 @@ export default function LpStorePage() {
     >
       {/* Corporation & region selection */}
       <div className="mb-4 flex flex-col items-center gap-2">
-        <div className="flex flex-wrap items-end justify-center gap-2">
+        <form
+          className="flex flex-wrap items-end justify-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSearch();
+          }}
+        >
           <div>
             <label className="mb-1 block text-sm font-medium text-zinc-400">NPC Corporation</label>
             <AutocompleteSelect
@@ -167,8 +173,7 @@ export default function LpStorePage() {
             />
           </div>
           <button
-            type="button"
-            onClick={handleSearch}
+            type="submit"
             disabled={loading || !selectedCorp}
             title="Search"
             aria-label="Search"
@@ -176,7 +181,7 @@ export default function LpStorePage() {
           >
             Search
           </button>
-        </div>
+        </form>
       </div>
 
       {/* Filters */}
