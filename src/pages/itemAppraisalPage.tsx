@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import AutocompleteSelect from "../components/autocompleteSelect.tsx";
 import ItemAppraisalTable from "../components/itemAppraisalTable.tsx";
@@ -160,10 +160,7 @@ export default function ItemAppraisalPage() {
   };
 
   // Automatically evaluate items when the page is loaded from a shared link with state.
-  const didAutoEvaluate = useRef(false);
   useEffect(() => {
-    if (didAutoEvaluate.current) return;
-    didAutoEvaluate.current = true;
     if (!initialState) return;
 
     const items = parseItemList(initialState.text);
