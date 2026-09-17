@@ -4,9 +4,7 @@ interface FetchStatusProps {
   fetchedAt: Date | null;
   summary?: ReactNode;
   loading: boolean;
-  loadingLabel: ReactNode;
-  progress: { done: number; total: number } | null;
-  progressLabel: string;
+  progress: number | null;
   error: string | null;
   summaryClassName?: string;
 }
@@ -16,9 +14,7 @@ export default function FetchStatus({
   fetchedAt,
   summary,
   loading,
-  loadingLabel,
   progress,
-  progressLabel,
   error,
   summaryClassName = "mb-4 text-center text-xs text-zinc-500",
 }: FetchStatusProps) {
@@ -32,12 +28,7 @@ export default function FetchStatus({
 
       {loading && (
         <div className="mb-4 text-center text-sm text-zinc-400">
-          {loadingLabel}
-          {progress && (
-            <span className="ml-2 text-zinc-500">
-              ({progress.done}/{progress.total} {progressLabel})
-            </span>
-          )}
+          Loading{progress !== null ? ` (${(progress * 100).toFixed(1)}%)` : ""}…
         </div>
       )}
 

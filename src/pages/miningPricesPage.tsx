@@ -3,9 +3,10 @@ import AutocompleteSelect from "../components/autocompleteSelect.tsx";
 import FetchStatus from "../components/fetchStatus.tsx";
 import Layout from "../components/layout.tsx";
 import MiningPricesTable from "../components/miningPricesTable.tsx";
+import type { MiningPriceRow } from "../esi/miningPrices.ts";
 import { fetchMiningPriceRows } from "../esi/miningPrices.ts";
 import { DEFAULT_REGION_ID, getRegions } from "../esi/regions.ts";
-import { useFetch } from "../hooks/useFetch.ts";
+import { usePromise } from "../hooks/usePromise.ts";
 import { numberSearchParam, useSearchParamState } from "../hooks/useSearchParamState.ts";
 
 export default function MiningPricesPage() {
@@ -20,16 +21,12 @@ export default function MiningPricesPage() {
         : undefined;
     },
   });
-  const {
-    data: rows,
-    error,
-    loading,
-    progress,
-    fetchedAt,
-    run: loadPrices,
-  } = useFetch((onProgress: (done: number, total: number) => void, region: number) =>
-    fetchMiningPriceRows(region, onProgress),
-  );
+  const { data: rows, error, loading, progress, fetchedAt, run } = usePromise<MiningPriceRow[]>();
+
+  const loadPrices = (region: number) =>
+    run((onProgress) =>
+      fetchMiningPriceRows(region, (done, total) => onProgress(total > 0 ? done / total : 0)),
+    );
 
   const handleSearch = () => loadPrices(regionId);
 
@@ -79,9 +76,7 @@ export default function MiningPricesPage() {
         summary={`${rows?.length ?? 0} items`}
         summaryClassName="mb-2 text-center text-xs text-zinc-500"
         loading={loading}
-        loadingLabel="Fetching prices…"
         progress={progress}
-        progressLabel="items processed"
         error={error}
       />
 

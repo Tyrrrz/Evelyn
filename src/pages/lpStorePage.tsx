@@ -4,9 +4,10 @@ import FetchStatus from "../components/fetchStatus.tsx";
 import Layout from "../components/layout.tsx";
 import LpStoreTable from "../components/lpStoreTable.tsx";
 import { getCorporations } from "../esi/client.ts";
+import type { LpStoreRow } from "../esi/lpStore.ts";
 import { fetchLpStoreRows } from "../esi/lpStore.ts";
 import { DEFAULT_REGION_ID, getRegions } from "../esi/regions.ts";
-import { useFetch } from "../hooks/useFetch.ts";
+import { usePromise } from "../hooks/usePromise.ts";
 import {
   boolSearchParam,
   numberSearchParam,
@@ -39,21 +40,14 @@ export default function LpStorePage() {
         : undefined;
     },
   });
-  const {
-    data: rows,
-    error,
-    loading,
-    progress,
-    fetchedAt,
-    run: loadLpStoreData,
-  } = useFetch(
-    (
-      onProgress: (done: number, total: number) => void,
-      corp: Corporation,
-      region: number,
-      withBlueprints: boolean,
-    ) => fetchLpStoreRows(corp.corporation_id, region, withBlueprints, onProgress),
-  );
+  const { data: rows, error, loading, progress, fetchedAt, run } = usePromise<LpStoreRow[]>();
+
+  const loadLpStoreData = (corp: Corporation, region: number, withBlueprints: boolean) =>
+    run((onProgress) =>
+      fetchLpStoreRows(corp.corporation_id, region, withBlueprints, (done, total) =>
+        onProgress(total > 0 ? done / total : 0),
+      ),
+    );
   const [includeOtherItems, setIncludeOtherItems] = useSearchParamState(
     "includeOtherItems",
     true,
@@ -216,13 +210,7 @@ export default function LpStorePage() {
         fetchedAt={fetchedAt}
         summary={`${filteredRows.length} offers`}
         loading={loading}
-        loadingLabel={
-          <>
-            Loading LP store data for <span className="text-zinc-100">{selectedCorp?.name}</span>…
-          </>
-        }
         progress={progress}
-        progressLabel="offers processed"
         error={error}
       />
 

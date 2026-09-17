@@ -4,10 +4,10 @@ import AutocompleteSelect from "../components/autocompleteSelect.tsx";
 import FetchStatus from "../components/fetchStatus.tsx";
 import ItemAppraisalTable from "../components/itemAppraisalTable.tsx";
 import Layout from "../components/layout.tsx";
-import type { AppraisalItem } from "../esi/itemAppraisal.ts";
+import type { AppraisalItem, AppraisalRow } from "../esi/itemAppraisal.ts";
 import { fetchAppraisalRows, parseItemList } from "../esi/itemAppraisal.ts";
 import { DEFAULT_REGION_ID, getRegions } from "../esi/regions.ts";
-import { useFetch } from "../hooks/useFetch.ts";
+import { usePromise } from "../hooks/usePromise.ts";
 import { decodeStateFromUrlParam, encodeStateToUrlParam } from "../utils/urlState.ts";
 
 const STATE_PARAM = "items";
@@ -118,15 +118,17 @@ export default function ItemAppraisalPage() {
     loading,
     progress,
     fetchedAt,
-    run: loadAppraisal,
-  } = useFetch(
-    (onProgress: (done: number, total: number) => void, items: AppraisalItem[], region: number) =>
-      fetchAppraisalRows(items, region, onProgress),
-  );
+    run,
+  } = usePromise<{ rows: AppraisalRow[]; unresolvedNames: string[] }>();
   const rows = appraisal?.rows ?? [];
   const unresolvedNames = appraisal?.unresolvedNames ?? [];
 
   const parsedItems = parseItemList(text);
+
+  const loadAppraisal = (items: AppraisalItem[], region: number) =>
+    run((onProgress) =>
+      fetchAppraisalRows(items, region, (done, total) => onProgress(total > 0 ? done / total : 0)),
+    );
 
   const handleEvaluate = () => {
     if (parsedItems.length === 0) return;
@@ -180,9 +182,7 @@ export default function ItemAppraisalPage() {
         fetchedAt={fetchedAt}
         summary={`${rows.length} items`}
         loading={loading}
-        loadingLabel="Fetching item prices…"
         progress={progress}
-        progressLabel="items processed"
         error={error}
       />
 
