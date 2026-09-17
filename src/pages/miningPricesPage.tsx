@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import AutocompleteSelect from "../components/autocompleteSelect.tsx";
 import Layout from "../components/layout.tsx";
 import MiningPricesTable from "../components/miningPricesTable.tsx";
@@ -48,10 +48,8 @@ export default function MiningPricesPage() {
   const handleSearch = () => void loadPrices(regionId);
 
   // Load prices for the default (or shared-link) region as soon as the page opens.
-  const didAutoSearch = useRef(false);
   useEffect(() => {
-    if (didAutoSearch.current) return;
-    didAutoSearch.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadPrices(regionId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
