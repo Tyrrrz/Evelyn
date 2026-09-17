@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import AutocompleteSelect from "../components/autocompleteSelect.tsx";
+import FetchStatus from "../components/fetchStatus.tsx";
 import Layout from "../components/layout.tsx";
 import LpStoreTable from "../components/lpStoreTable.tsx";
 import { getCorporations } from "../esi/client.ts";
-import type { LpStoreRow } from "../esi/lpStore.ts";
 import { fetchLpStoreRows } from "../esi/lpStore.ts";
 import { DEFAULT_REGION_ID, getRegions } from "../esi/regions.ts";
+import { useFetch } from "../hooks/useFetch.ts";
 import {
   boolSearchParam,
   numberSearchParam,
@@ -38,11 +39,21 @@ export default function LpStorePage() {
         : undefined;
     },
   });
-  const [rows, setRows] = useState<LpStoreRow[]>([]);
-  const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: rows,
+    error,
+    loading,
+    progress,
+    fetchedAt,
+    run: loadLpStoreData,
+  } = useFetch(
+    (
+      onProgress: (done: number, total: number) => void,
+      corp: Corporation,
+      region: number,
+      withBlueprints: boolean,
+    ) => fetchLpStoreRows(corp.corporation_id, region, withBlueprints, onProgress),
+  );
   const [includeOtherItems, setIncludeOtherItems] = useSearchParamState(
     "includeOtherItems",
     true,
@@ -64,38 +75,15 @@ export default function LpStorePage() {
     boolSearchParam,
   );
 
-  const loadLpStoreData = async (corp: Corporation, region: number, withBlueprints: boolean) => {
-    setLoading(true);
-    setProgress(null);
-    setError(null);
-    setRows([]);
-    setFetchedAt(null);
-    try {
-      const data = await fetchLpStoreRows(
-        corp.corporation_id,
-        region,
-        withBlueprints,
-        (done, total) => setProgress({ done, total }),
-      );
-      setRows(data);
-      setFetchedAt(new Date());
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Unknown error");
-    } finally {
-      setLoading(false);
-      setProgress(null);
-    }
-  };
-
   const handleSearch = () => {
-    if (selectedCorp) void loadLpStoreData(selectedCorp, regionId, includeBlueprints);
+    if (selectedCorp) loadLpStoreData(selectedCorp, regionId, includeBlueprints);
   };
 
   // Immediately search when the page is loaded with an NPC corp already selected via query params.
   useEffect(() => {
     if (!selectedCorp) return;
     const timeoutId = setTimeout(() => {
-      void loadLpStoreData(selectedCorp, regionId, includeBlueprints);
+      loadLpStoreData(selectedCorp, regionId, includeBlueprints);
     }, 0);
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -109,15 +97,15 @@ export default function LpStorePage() {
     // Blueprint reward offers are only ever included in `rows` when the previous fetch requested
     // them, so unchecking never requires a reload (blueprint rows are simply filtered out below),
     // and checking only requires one if the currently-loaded data doesn't already have them.
-    const hasBlueprintRows = rows.some(
+    const hasBlueprintRows = (rows ?? []).some(
       (row) => row.blueprintMaterials.length > 0 || row.typeName.endsWith(" Blueprint"),
     );
     if (checked && !hasBlueprintRows && selectedCorp && fetchedAt) {
-      void loadLpStoreData(selectedCorp, regionId, checked);
+      loadLpStoreData(selectedCorp, regionId, checked);
     }
   };
 
-  const filteredRows = rows.filter(
+  const filteredRows = (rows ?? []).filter(
     (row) =>
       (includeOtherItems || row.requiredItems.length === 0) &&
       (includeBlueprints || row.blueprintMaterials.length === 0) &&
@@ -224,35 +212,29 @@ export default function LpStorePage() {
         </label>
       </div>
 
-      {fetchedAt && (
-        <div className="mb-4 text-center text-xs text-zinc-500">
-          {filteredRows.length} offers • fetched {fetchedAt.toLocaleString()}
-        </div>
-      )}
-
-      {/* Loading / progress */}
-      {loading && (
-        <div className="mb-4 text-center text-sm text-zinc-400">
-          Loading LP store data for <span className="text-zinc-100">{selectedCorp?.name}</span>…
-          {progress && (
-            <span className="ml-2 text-zinc-500">
-              ({progress.done}/{progress.total} offers processed)
-            </span>
-          )}
-        </div>
-      )}
-
-      {error && <div className="mb-4 text-center text-sm text-red-400">Error: {error}</div>}
+      <FetchStatus
+        fetchedAt={fetchedAt}
+        summary={`${filteredRows.length} offers`}
+        loading={loading}
+        loadingLabel={
+          <>
+            Loading LP store data for <span className="text-zinc-100">{selectedCorp?.name}</span>…
+          </>
+        }
+        progress={progress}
+        progressLabel="offers processed"
+        error={error}
+      />
 
       {filteredRows.length > 0 && <LpStoreTable rows={filteredRows} />}
 
-      {!loading && fetchedAt && rows.length === 0 && !error && (
+      {!loading && fetchedAt && (rows ?? []).length === 0 && !error && (
         <div className="text-center text-sm text-zinc-500">
           No LP store offers found for {selectedCorp?.name}.
         </div>
       )}
 
-      {!loading && fetchedAt && rows.length > 0 && filteredRows.length === 0 && !error && (
+      {!loading && fetchedAt && (rows ?? []).length > 0 && filteredRows.length === 0 && !error && (
         <div className="text-center text-sm text-zinc-500">
           No LP store offers match the current filters.
         </div>

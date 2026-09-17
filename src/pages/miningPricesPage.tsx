@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import AutocompleteSelect from "../components/autocompleteSelect.tsx";
+import FetchStatus from "../components/fetchStatus.tsx";
 import Layout from "../components/layout.tsx";
 import MiningPricesTable from "../components/miningPricesTable.tsx";
-import type { MiningPriceRow } from "../esi/miningPrices.ts";
 import { fetchMiningPriceRows } from "../esi/miningPrices.ts";
 import { DEFAULT_REGION_ID, getRegions } from "../esi/regions.ts";
+import { useFetch } from "../hooks/useFetch.ts";
 import { numberSearchParam, useSearchParamState } from "../hooks/useSearchParamState.ts";
 
 export default function MiningPricesPage() {
@@ -19,38 +20,22 @@ export default function MiningPricesPage() {
         : undefined;
     },
   });
-  const [rows, setRows] = useState<MiningPriceRow[]>([]);
-  const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: rows,
+    error,
+    loading,
+    progress,
+    fetchedAt,
+    run: loadPrices,
+  } = useFetch((onProgress: (done: number, total: number) => void, region: number) =>
+    fetchMiningPriceRows(region, onProgress),
+  );
 
-  const loadPrices = async (region: number) => {
-    setLoading(true);
-    setProgress(null);
-    setError(null);
-    setRows([]);
-    setFetchedAt(null);
-    try {
-      const data = await fetchMiningPriceRows(region, (done, total) =>
-        setProgress({ done, total }),
-      );
-      setRows(data);
-      setFetchedAt(new Date());
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Unknown error");
-    } finally {
-      setLoading(false);
-      setProgress(null);
-    }
-  };
-
-  const handleSearch = () => void loadPrices(regionId);
+  const handleSearch = () => loadPrices(regionId);
 
   // Load prices for the default (or shared-link) region as soon as the page opens.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadPrices(regionId);
+    loadPrices(regionId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -89,28 +74,20 @@ export default function MiningPricesPage() {
         </form>
       </div>
 
-      {fetchedAt && (
-        <div className="mb-2 text-center text-xs text-zinc-500">
-          {rows.length} items • fetched {fetchedAt.toLocaleString()}
-        </div>
-      )}
+      <FetchStatus
+        fetchedAt={fetchedAt}
+        summary={`${rows?.length ?? 0} items`}
+        summaryClassName="mb-2 text-center text-xs text-zinc-500"
+        loading={loading}
+        loadingLabel="Fetching prices…"
+        progress={progress}
+        progressLabel="items processed"
+        error={error}
+      />
 
-      {loading && (
-        <div className="mb-4 text-center text-sm text-zinc-400">
-          Fetching prices…
-          {progress && (
-            <span className="ml-2 text-zinc-500">
-              ({progress.done}/{progress.total} items processed)
-            </span>
-          )}
-        </div>
-      )}
+      {!loading && rows && rows.length > 0 && <MiningPricesTable rows={rows} />}
 
-      {error && <div className="mb-4 text-center text-sm text-red-400">Error: {error}</div>}
-
-      {!loading && rows.length > 0 && <MiningPricesTable rows={rows} />}
-
-      {!loading && fetchedAt && rows.length === 0 && !error && (
+      {!loading && fetchedAt && rows && rows.length === 0 && !error && (
         <div className="text-center text-sm text-zinc-500">No mining types found.</div>
       )}
     </Layout>
