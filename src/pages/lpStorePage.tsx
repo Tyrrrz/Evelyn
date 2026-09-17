@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AutocompleteSelect from "../components/autocompleteSelect.tsx";
 import Layout from "../components/layout.tsx";
 import LpStoreTable from "../components/lpStoreTable.tsx";
@@ -92,11 +92,7 @@ export default function LpStorePage() {
   };
 
   // Immediately search when the page is loaded with an NPC corp already selected via query params.
-  const didAutoSearch = useRef(false);
   useEffect(() => {
-    if (didAutoSearch.current) return;
-    didAutoSearch.current = true;
-
     if (!selectedCorp) return;
     const timeoutId = setTimeout(() => {
       void loadLpStoreData(selectedCorp, regionId, includeBlueprints);

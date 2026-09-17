@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import AutocompleteSelect from "../components/autocompleteSelect.tsx";
 import ItemAppraisalTable from "../components/itemAppraisalTable.tsx";
@@ -158,6 +158,19 @@ export default function ItemAppraisalPage() {
 
     void loadAppraisal(parsedItems, regionId);
   };
+
+  // Automatically evaluate items when the page is loaded from a shared link with state.
+  useEffect(() => {
+    if (!initialState) return;
+
+    const items = parseItemList(initialState.text);
+    if (items.length === 0) return;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadAppraisal(items, regionId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <Layout
       title="Item Appraisal"
