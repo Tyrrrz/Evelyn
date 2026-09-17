@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import AsyncStatus from "../components/asyncStatus.tsx";
 import AutocompleteSelect from "../components/autocompleteSelect.tsx";
-import FetchStatus from "../components/fetchStatus.tsx";
 import ItemAppraisalTable from "../components/itemAppraisalTable.tsx";
 import Layout from "../components/layout.tsx";
 import type { AppraisalItem, AppraisalRow } from "../esi/itemAppraisal.ts";
@@ -117,7 +117,7 @@ export default function ItemAppraisalPage() {
     error,
     loading,
     progress,
-    fetchedAt,
+    timestamp,
     run,
   } = usePromise<{ rows: AppraisalRow[]; unresolvedNames: string[] }>();
   const rows = appraisal?.rows ?? [];
@@ -125,10 +125,8 @@ export default function ItemAppraisalPage() {
 
   const parsedItems = parseItemList(text);
 
-  const loadAppraisal = (items: AppraisalItem[], region: number) =>
-    run((onProgress) =>
-      fetchAppraisalRows(items, region, (done, total) => onProgress(total > 0 ? done / total : 0)),
-    );
+  const loadAppraisal = (items: AppraisalItem[], regionId: number) =>
+    run((onProgress) => fetchAppraisalRows(items, regionId, onProgress));
 
   const handleEvaluate = () => {
     if (parsedItems.length === 0) return;
@@ -178,12 +176,12 @@ export default function ItemAppraisalPage() {
         </button>
       </div>
 
-      <FetchStatus
-        fetchedAt={fetchedAt}
-        summary={`${rows.length} items`}
+      <AsyncStatus
+        error={error}
         loading={loading}
         progress={progress}
-        error={error}
+        timestamp={timestamp}
+        summary={`${rows.length} items`}
       />
 
       {unresolvedNames.length > 0 && (
@@ -195,7 +193,7 @@ export default function ItemAppraisalPage() {
 
       {rows.length > 0 && <ItemAppraisalTable rows={rows} />}
 
-      {!loading && fetchedAt && rows.length === 0 && !error && (
+      {!loading && timestamp && rows.length === 0 && !error && (
         <div className="text-center text-sm text-zinc-500">
           None of the pasted items could be recognized.
         </div>

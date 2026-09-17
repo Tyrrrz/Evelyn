@@ -27,7 +27,7 @@ function pricePerM3(pricePerUnit: number | null, volume: number): number | null 
  */
 export async function fetchMiningPriceRows(
   regionId: number,
-  onProgress?: (done: number, total: number) => void,
+  onProgress?: (fraction: number) => void,
 ): Promise<MiningPriceRow[]> {
   const miningItems = getMiningItems();
 
@@ -54,7 +54,7 @@ export async function fetchMiningPriceRows(
     );
 
     done += batch.length;
-    onProgress?.(done, miningItems.length);
+    if (miningItems.length > 0) onProgress?.(done / miningItems.length);
     rows.push(...batchRows);
   }
 

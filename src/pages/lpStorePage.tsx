@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
+import AsyncStatus from "../components/asyncStatus.tsx";
 import AutocompleteSelect from "../components/autocompleteSelect.tsx";
-import FetchStatus from "../components/fetchStatus.tsx";
 import Layout from "../components/layout.tsx";
 import LpStoreTable from "../components/lpStoreTable.tsx";
 import { getCorporations } from "../esi/client.ts";
@@ -40,13 +40,11 @@ export default function LpStorePage() {
         : undefined;
     },
   });
-  const { data: rows, error, loading, progress, fetchedAt, run } = usePromise<LpStoreRow[]>();
+  const { data: rows, error, loading, progress, timestamp, run } = usePromise<LpStoreRow[]>();
 
-  const loadLpStoreData = (corp: Corporation, region: number, withBlueprints: boolean) =>
+  const loadLpStoreData = (corp: Corporation, regionId: number, withBlueprints: boolean) =>
     run((onProgress) =>
-      fetchLpStoreRows(corp.corporation_id, region, withBlueprints, (done, total) =>
-        onProgress(total > 0 ? done / total : 0),
-      ),
+      fetchLpStoreRows(corp.corporation_id, regionId, withBlueprints, onProgress),
     );
   const [includeOtherItems, setIncludeOtherItems] = useSearchParamState(
     "includeOtherItems",
@@ -94,7 +92,7 @@ export default function LpStorePage() {
     const hasBlueprintRows = (rows ?? []).some(
       (row) => row.blueprintMaterials.length > 0 || row.typeName.endsWith(" Blueprint"),
     );
-    if (checked && !hasBlueprintRows && selectedCorp && fetchedAt) {
+    if (checked && !hasBlueprintRows && selectedCorp && timestamp) {
       loadLpStoreData(selectedCorp, regionId, checked);
     }
   };
@@ -206,23 +204,23 @@ export default function LpStorePage() {
         </label>
       </div>
 
-      <FetchStatus
-        fetchedAt={fetchedAt}
-        summary={`${filteredRows.length} offers`}
+      <AsyncStatus
+        error={error}
         loading={loading}
         progress={progress}
-        error={error}
+        timestamp={timestamp}
+        summary={`${filteredRows.length} offers`}
       />
 
       {filteredRows.length > 0 && <LpStoreTable rows={filteredRows} />}
 
-      {!loading && fetchedAt && (rows ?? []).length === 0 && !error && (
+      {!loading && timestamp && (rows ?? []).length === 0 && !error && (
         <div className="text-center text-sm text-zinc-500">
           No LP store offers found for {selectedCorp?.name}.
         </div>
       )}
 
-      {!loading && fetchedAt && (rows ?? []).length > 0 && filteredRows.length === 0 && !error && (
+      {!loading && timestamp && (rows ?? []).length > 0 && filteredRows.length === 0 && !error && (
         <div className="text-center text-sm text-zinc-500">
           No LP store offers match the current filters.
         </div>

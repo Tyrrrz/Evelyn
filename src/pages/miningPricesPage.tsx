@@ -1,6 +1,6 @@
 import { useEffect } from "react";
+import AsyncStatus from "../components/asyncStatus.tsx";
 import AutocompleteSelect from "../components/autocompleteSelect.tsx";
-import FetchStatus from "../components/fetchStatus.tsx";
 import Layout from "../components/layout.tsx";
 import MiningPricesTable from "../components/miningPricesTable.tsx";
 import type { MiningPriceRow } from "../esi/miningPrices.ts";
@@ -21,12 +21,10 @@ export default function MiningPricesPage() {
         : undefined;
     },
   });
-  const { data: rows, error, loading, progress, fetchedAt, run } = usePromise<MiningPriceRow[]>();
+  const { data: rows, error, loading, progress, timestamp, run } = usePromise<MiningPriceRow[]>();
 
-  const loadPrices = (region: number) =>
-    run((onProgress) =>
-      fetchMiningPriceRows(region, (done, total) => onProgress(total > 0 ? done / total : 0)),
-    );
+  const loadPrices = (regionId: number) =>
+    run((onProgress) => fetchMiningPriceRows(regionId, onProgress));
 
   const handleSearch = () => loadPrices(regionId);
 
@@ -71,18 +69,17 @@ export default function MiningPricesPage() {
         </form>
       </div>
 
-      <FetchStatus
-        fetchedAt={fetchedAt}
-        summary={`${rows?.length ?? 0} items`}
-        summaryClassName="mb-2 text-center text-xs text-zinc-500"
+      <AsyncStatus
+        error={error}
         loading={loading}
         progress={progress}
-        error={error}
+        timestamp={timestamp}
+        summary={`${rows?.length ?? 0} items`}
       />
 
       {!loading && rows && rows.length > 0 && <MiningPricesTable rows={rows} />}
 
-      {!loading && fetchedAt && rows && rows.length === 0 && !error && (
+      {!loading && timestamp && rows && rows.length === 0 && !error && (
         <div className="text-center text-sm text-zinc-500">No mining types found.</div>
       )}
     </Layout>
