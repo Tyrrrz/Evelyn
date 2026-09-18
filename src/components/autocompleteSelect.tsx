@@ -5,6 +5,12 @@ type SelectOption<T extends string | number> = {
   label: string;
 };
 
+// Full text matches (especially prefix matches) are prioritized over fuzzy matches by adding a
+// large bonus on top of the fuzzy score, so that e.g. searching for "Na" puts labels starting
+// with "Na" before those that merely contain scattered occurrences of "n" and "a".
+const FULL_MATCH_BONUS = 1000;
+const PREFIX_MATCH_BONUS = 1000;
+
 const getFuzzyScore = (label: string, query: string): number => {
   const normalizedLabel = label.toLowerCase();
   const normalizedQuery = query.toLowerCase().trim();
@@ -24,6 +30,12 @@ const getFuzzyScore = (label: string, query: string): number => {
 
     lastMatchIndex = matchIndex;
     fromIndex = matchIndex + 1;
+  }
+
+  if (normalizedLabel.startsWith(normalizedQuery)) {
+    score += PREFIX_MATCH_BONUS;
+  } else if (normalizedLabel.includes(normalizedQuery)) {
+    score += FULL_MATCH_BONUS;
   }
 
   return score;
