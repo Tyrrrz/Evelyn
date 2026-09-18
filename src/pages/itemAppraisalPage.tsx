@@ -119,7 +119,7 @@ export default function ItemAppraisalPage() {
     loading,
     progress,
     timestamp,
-    execute: evaluate,
+    execute,
   } = useAsyncCallback(({ onProgress }) => fetchAppraisalRows(parsedItems, regionId, onProgress));
   const rows = appraisal?.rows ?? [];
   const unresolvedNames = appraisal?.unresolvedNames ?? [];
@@ -137,7 +137,7 @@ export default function ItemAppraisalPage() {
       { replace: true },
     );
 
-    evaluate();
+    execute();
   };
 
   // Automatically evaluate items when the page is loaded from a shared link with state.
@@ -145,7 +145,7 @@ export default function ItemAppraisalPage() {
     if (!initialState) return;
     if (parsedItems.length === 0) return;
 
-    evaluate();
+    execute();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

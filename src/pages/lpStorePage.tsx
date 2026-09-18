@@ -68,7 +68,7 @@ export default function LpStorePage() {
     loading,
     progress,
     timestamp,
-    execute: loadLpStoreData,
+    execute,
   } = useAsyncCallback(({ onProgress }) => {
     if (!selectedCorp) throw new Error("No corporation selected");
     return fetchLpStoreRows(
@@ -80,14 +80,14 @@ export default function LpStorePage() {
   });
 
   const handleSearch = () => {
-    if (selectedCorp) loadLpStoreData();
+    if (selectedCorp) execute();
   };
 
   // Immediately search when the page is loaded with an NPC corp already selected via query params.
   useEffect(() => {
     if (!selectedCorp) return;
     const timeoutId = setTimeout(() => {
-      loadLpStoreData();
+      execute();
     }, 0);
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -106,7 +106,7 @@ export default function LpStorePage() {
     );
     if (checked && !hasBlueprintRows && selectedCorp && timestamp) {
       includeBlueprintsRef.current = checked;
-      loadLpStoreData();
+      execute();
     }
   };
 

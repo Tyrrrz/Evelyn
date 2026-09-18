@@ -26,12 +26,12 @@ export default function MiningPricesPage() {
     loading,
     progress,
     timestamp,
-    execute: loadPrices,
+    execute,
   } = useAsyncCallback(({ onProgress }) => fetchMiningPriceRows(regionId, onProgress));
 
   // Load prices for the default (or shared-link) region as soon as the page opens.
   useEffect(() => {
-    loadPrices();
+    execute();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -45,7 +45,7 @@ export default function MiningPricesPage() {
           className="flex flex-wrap items-end justify-center gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            loadPrices();
+            execute();
           }}
         >
           <div>
