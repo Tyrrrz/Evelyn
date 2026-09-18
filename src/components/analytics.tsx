@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { resolvePath } from "../utils/assets";
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-definitions -- must be an interface to merge with the global Window type
   interface Window {
     goatcounter?: {
       count?: (options?: { path?: string }) => void;

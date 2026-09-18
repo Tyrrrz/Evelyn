@@ -5,7 +5,7 @@
  */
 
 /** A single signature/anomaly line as parsed from a copy-pasted probe scanner list. */
-export interface ParsedSignature {
+export type ParsedSignature = {
   id: string;
   entityKind: string;
   sigKind: string;
@@ -14,23 +14,23 @@ export interface ParsedSignature {
   distance: string;
 }
 
-export interface SignatureRecord extends ParsedSignature {
+export type SignatureRecord = {
   note: string;
   firstSeenAt: string;
   updatedAt: string;
-}
+} & ParsedSignature
 
-export interface SystemRecord {
+export type SystemRecord = {
   name: string;
   updatedAt: string;
   signatures: Record<string, SignatureRecord>;
 }
 
-export interface SigTrackerStore {
+export type SigTrackerStore = {
   systems: Record<string, SystemRecord>;
 }
 
-export interface ImportDiff {
+export type ImportDiff = {
   /** IDs of signatures that weren't previously known for this system. */
   added: string[];
   /** IDs of signatures that were already known, but had at least one field change. */

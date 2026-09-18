@@ -1,6 +1,6 @@
 import systemData from "./systemData.json";
 
-export interface SolarSystem {
+export type SolarSystem = {
   systemId: number;
   name: string;
 }

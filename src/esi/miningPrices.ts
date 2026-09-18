@@ -2,7 +2,7 @@ import { bestBuyPrice, bestSellPrice, getMarketOrders } from "./client.ts";
 import type { MiningCategory, MiningItem } from "./mining.ts";
 import { getMiningItems } from "./mining.ts";
 
-export interface MiningPriceRow {
+export type MiningPriceRow = {
   typeId: number;
   typeName: string;
   category: MiningCategory;

@@ -28,6 +28,8 @@ export default defineConfig([
       ...reactHooks.configs.recommended.rules,
       "react/react-in-jsx-scope": "off",
       "react/prop-types": "off",
+      "@typescript-eslint/consistent-type-definitions": ["error", "type"],
+      "func-style": ["error", "expression"],
     },
   },
   {

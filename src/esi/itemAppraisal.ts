@@ -1,12 +1,12 @@
 import { bestBuyPrice, bestSellPrice, getMarketOrders, resolveTypeIdsByName } from "./client.ts";
 
 /** A single line parsed from a copy-pasted inventory list. */
-export interface AppraisalItem {
+export type AppraisalItem = {
   name: string;
   quantity: number;
 }
 
-export interface AppraisalRow {
+export type AppraisalRow = {
   typeId: number;
   typeName: string;
   quantity: number;

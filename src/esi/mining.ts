@@ -6,7 +6,7 @@ import miningData from "./miningData.json";
 
 export type MiningCategory = "ore" | "gas" | "ice";
 
-export interface MiningItem {
+export type MiningItem = {
   typeId: number;
   name: string;
   /** Packaged volume, in m³ per unit. */

@@ -3,7 +3,7 @@
 // regionData.json is generated, and regenerate it there when regions change.
 import regionData from "./regionData.json";
 
-export interface Region {
+export type Region = {
   regionId: number;
   name: string;
 }

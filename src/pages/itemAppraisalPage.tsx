@@ -12,7 +12,7 @@ import { decodeStateFromUrlParam, encodeStateToUrlParam } from "../utils/urlStat
 const STATE_PARAM = "items";
 const REGION_PARAM = "region";
 
-interface EncodedState {
+type EncodedState = {
   text: string;
   region: number;
 }

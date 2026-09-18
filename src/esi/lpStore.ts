@@ -13,7 +13,7 @@ import {
 } from "./client.ts";
 
 /** An item required by an offer (directly, or as a blueprint material), priced at sell price. */
-export interface Ingredient {
+export type Ingredient = {
   typeId: number;
   typeName: string;
   quantity: number;
@@ -21,7 +21,7 @@ export interface Ingredient {
   sellPrice: number | null;
 }
 
-export interface LpStoreRow {
+export type LpStoreRow = {
   offerId: number;
   typeName: string;
   typeId: number;

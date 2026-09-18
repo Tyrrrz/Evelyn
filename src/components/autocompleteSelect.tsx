@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-interface SelectOption<T extends string | number> {
+type SelectOption<T extends string | number> = {
   value: T;
   label: string;
 }

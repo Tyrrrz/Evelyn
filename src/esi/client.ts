@@ -13,12 +13,12 @@ import blueprintData from "./blueprintData.json";
 
 const ESI_BASE = "https://esi.evetech.net/latest";
 
-export interface Corporation {
+export type Corporation = {
   corporation_id: number;
   name: string;
 }
 
-export interface LpOffer {
+export type LpOffer = {
   offer_id: number;
   type_id: number;
   quantity: number;
@@ -27,7 +27,7 @@ export interface LpOffer {
   required_items: { type_id: number; quantity: number }[];
 }
 
-export interface MarketOrder {
+export type MarketOrder = {
   order_id: number;
   type_id: number;
   price: number;
@@ -35,18 +35,18 @@ export interface MarketOrder {
   is_buy_order: boolean;
 }
 
-export interface MarketHistoryEntry {
+export type MarketHistoryEntry = {
   date: string;
   average: number;
   volume: number;
 }
 
-export interface TypeInfo {
+export type TypeInfo = {
   name: string;
   type_id: number;
 }
 
-export interface BlueprintInfo {
+export type BlueprintInfo = {
   productTypeId: number;
   productQuantity: number;
   materials: { typeId: number; quantity: number }[];
@@ -244,7 +244,7 @@ export function bestSellPrice(orders: MarketOrder[]): number | null {
   return fivePercentPrice(orders, false);
 }
 
-export interface BuyOrderLevel {
+export type BuyOrderLevel = {
   price: number;
   volume: number;
 }

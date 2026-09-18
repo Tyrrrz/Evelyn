@@ -1,23 +1,25 @@
 import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-interface SearchParamStateOptions<T> {
+type SearchParamStateOptions<T> = {
   serialize?: (value: T) => string | undefined;
   /** Return `undefined` to fall back to the initial state (e.g. when the param is malformed). */
   deserialize?: (raw: string) => T | undefined;
 }
 
-interface SearchParamStateOptionsWithDeserializer<T> extends SearchParamStateOptions<T> {
+type SearchParamStateOptionsWithDeserializer<T> = {
   deserialize: (raw: string) => T | undefined;
-}
+} & SearchParamStateOptions<T>
 
 const stringSearchParamDeserialize = (raw: string) => raw;
 
+// eslint-disable-next-line func-style -- function overload signatures require the `function` keyword
 export function useSearchParamState(
   key: string,
   initialState: string | (() => string),
   options?: SearchParamStateOptions<string>,
 ): [string, (value: string) => void];
+// eslint-disable-next-line func-style -- function overload signatures require the `function` keyword
 export function useSearchParamState<T>(
   key: string,
   initialState: T | (() => T),
@@ -27,6 +29,7 @@ export function useSearchParamState<T>(
  * Like `useState`, but persists the value in a URL search param (replacing the current
  * history entry) so that the page's state survives reloads and can be shared via link.
  */
+// eslint-disable-next-line func-style -- implementation signature for the overloads above must also use the `function` keyword
 export function useSearchParamState<T>(
   key: string,
   initialState: T | (() => T),

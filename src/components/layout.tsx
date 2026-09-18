@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-interface LayoutProps {
+type LayoutProps = {
   title?: ReactNode;
   subtitle?: ReactNode;
   children: ReactNode;

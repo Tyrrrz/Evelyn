@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-interface AsyncStatusProps {
+type AsyncStatusProps = {
   error: string | null;
   loading: boolean;
   progress: number | null;
