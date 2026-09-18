@@ -102,7 +102,7 @@ export async function fetchLpStoreRows(
   corporationId: number,
   regionId: number,
   includeBlueprints: boolean,
-  onProgress?: (done: number, total: number) => void,
+  onProgress?: (fraction: number) => void,
 ): Promise<LpStoreRow[]> {
   const allOffers = await getLpOffers(corporationId);
   const getCachedMarketOrders = memoizeByTypeId((typeId) => getMarketOrders(typeId, regionId));
@@ -264,7 +264,7 @@ export async function fetchLpStoreRows(
     );
 
     done += batch.length;
-    onProgress?.(done, offers.length);
+    if (offers.length > 0) onProgress?.(done / offers.length);
     rows.push(...(batchRows.filter(Boolean) as LpStoreRow[]));
   }
 

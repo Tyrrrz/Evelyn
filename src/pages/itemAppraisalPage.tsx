@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import AsyncStatus from "../components/asyncStatus.tsx";
 import AutocompleteSelect from "../components/autocompleteSelect.tsx";
 import ItemAppraisalTable from "../components/itemAppraisalTable.tsx";
 import Layout from "../components/layout.tsx";
-import type { AppraisalItem, AppraisalRow } from "../esi/itemAppraisal.ts";
 import { fetchAppraisalRows, parseItemList } from "../esi/itemAppraisal.ts";
 import { DEFAULT_REGION_ID, getRegions } from "../esi/regions.ts";
+import { useAsyncCallback } from "../hooks/useAsyncCallback.ts";
 import { decodeStateFromUrlParam, encodeStateToUrlParam } from "../utils/urlState.ts";
 
 const STATE_PARAM = "items";
@@ -110,38 +111,18 @@ export default function ItemAppraisalPage() {
     const region = initialState?.region;
     return region && regions.some((r) => r.regionId === region) ? region : DEFAULT_REGION_ID;
   });
-  const [rows, setRows] = useState<AppraisalRow[]>([]);
-  const [unresolvedNames, setUnresolvedNames] = useState<string[]>([]);
-  const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
   const parsedItems = parseItemList(text);
 
-  const loadAppraisal = async (items: AppraisalItem[], region: number) => {
-    setLoading(true);
-    setProgress(null);
-    setError(null);
-    setRows([]);
-    setUnresolvedNames([]);
-    setFetchedAt(null);
-    try {
-      const { rows: data, unresolvedNames: unresolved } = await fetchAppraisalRows(
-        items,
-        region,
-        (done, total) => setProgress({ done, total }),
-      );
-      setRows(data);
-      setUnresolvedNames(unresolved);
-      setFetchedAt(new Date());
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Unknown error");
-    } finally {
-      setLoading(false);
-      setProgress(null);
-    }
-  };
+  const {
+    data: appraisal,
+    error,
+    loading,
+    progress,
+    timestamp,
+    execute,
+  } = useAsyncCallback(({ onProgress }) => fetchAppraisalRows(parsedItems, regionId, onProgress));
+  const rows = appraisal?.rows ?? [];
+  const unresolvedNames = appraisal?.unresolvedNames ?? [];
 
   const handleEvaluate = () => {
     if (parsedItems.length === 0) return;
@@ -156,18 +137,15 @@ export default function ItemAppraisalPage() {
       { replace: true },
     );
 
-    void loadAppraisal(parsedItems, regionId);
+    execute();
   };
 
   // Automatically evaluate items when the page is loaded from a shared link with state.
   useEffect(() => {
     if (!initialState) return;
+    if (parsedItems.length === 0) return;
 
-    const items = parseItemList(initialState.text);
-    if (items.length === 0) return;
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadAppraisal(items, regionId);
+    execute();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -192,24 +170,13 @@ export default function ItemAppraisalPage() {
         </button>
       </div>
 
-      {fetchedAt && (
-        <div className="mb-4 text-center text-xs text-zinc-500">
-          {rows.length} items • fetched {fetchedAt.toLocaleString()}
-        </div>
-      )}
-
-      {loading && (
-        <div className="mb-4 text-center text-sm text-zinc-400">
-          Fetching item prices…
-          {progress && (
-            <span className="ml-2 text-zinc-500">
-              ({progress.done}/{progress.total} items processed)
-            </span>
-          )}
-        </div>
-      )}
-
-      {error && <div className="mb-4 text-center text-sm text-red-400">Error: {error}</div>}
+      <AsyncStatus
+        error={error}
+        loading={loading}
+        progress={progress}
+        timestamp={timestamp}
+        summary={`${rows.length} items`}
+      />
 
       {unresolvedNames.length > 0 && (
         <div className="mb-4 text-center text-sm text-yellow-500">
@@ -220,7 +187,7 @@ export default function ItemAppraisalPage() {
 
       {rows.length > 0 && <ItemAppraisalTable rows={rows} />}
 
-      {!loading && fetchedAt && rows.length === 0 && !error && (
+      {!loading && timestamp && rows.length === 0 && !error && (
         <div className="text-center text-sm text-zinc-500">
           None of the pasted items could be recognized.
         </div>

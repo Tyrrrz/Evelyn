@@ -52,7 +52,7 @@ export function parseItemList(text: string): AppraisalItem[] {
 export async function fetchAppraisalRows(
   items: AppraisalItem[],
   regionId: number,
-  onProgress?: (done: number, total: number) => void,
+  onProgress?: (fraction: number) => void,
 ): Promise<{ rows: AppraisalRow[]; unresolvedNames: string[] }> {
   const typeIdByName = await resolveTypeIdsByName(items.map((i) => i.name));
   const unresolvedNames = items
@@ -85,7 +85,7 @@ export async function fetchAppraisalRows(
     );
 
     done += batch.length;
-    onProgress?.(done, resolvedItems.length);
+    if (resolvedItems.length > 0) onProgress?.(done / resolvedItems.length);
     rows.push(...batchRows);
   }
 
