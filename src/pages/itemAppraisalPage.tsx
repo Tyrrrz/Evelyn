@@ -120,7 +120,7 @@ export default function ItemAppraisalPage() {
     progress,
     timestamp,
     execute: evaluate,
-  } = useAsyncCallback((onProgress) => fetchAppraisalRows(parsedItems, regionId, onProgress));
+  } = useAsyncCallback(({ onProgress }) => fetchAppraisalRows(parsedItems, regionId, onProgress));
   const rows = appraisal?.rows ?? [];
   const unresolvedNames = appraisal?.unresolvedNames ?? [];
 

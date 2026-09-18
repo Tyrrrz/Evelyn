@@ -23,7 +23,9 @@ const idleState: AsyncCallbackState<never> = {
  * dev-mode double-invoke, or a user triggering search twice in a row) can't race to set state
  * from whichever promise settles last.
  */
-export function useAsyncCallback<T>(task: (onProgress: (fraction: number) => void) => Promise<T>) {
+export function useAsyncCallback<T>(
+  task: (options: { onProgress?: (fraction: number) => void }) => Promise<T>,
+) {
   const [state, setState] = useState<AsyncCallbackState<T>>(idleState);
   const loadingRef = useRef(false);
 
@@ -33,8 +35,10 @@ export function useAsyncCallback<T>(task: (onProgress: (fraction: number) => voi
 
     setState({ data: null, error: null, loading: true, progress: null, timestamp: null });
 
-    task((fraction) => {
-      setState({ data: null, error: null, loading: true, progress: fraction, timestamp: null });
+    task({
+      onProgress: (fraction) => {
+        setState({ data: null, error: null, loading: true, progress: fraction, timestamp: null });
+      },
     })
       .then((data) => {
         setState({ data, error: null, loading: false, progress: null, timestamp: new Date() });

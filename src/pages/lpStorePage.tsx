@@ -69,7 +69,7 @@ export default function LpStorePage() {
     progress,
     timestamp,
     execute: loadLpStoreData,
-  } = useAsyncCallback((onProgress) => {
+  } = useAsyncCallback(({ onProgress }) => {
     if (!selectedCorp) throw new Error("No corporation selected");
     return fetchLpStoreRows(
       selectedCorp.corporation_id,

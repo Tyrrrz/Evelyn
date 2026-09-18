@@ -27,7 +27,7 @@ export default function MiningPricesPage() {
     progress,
     timestamp,
     execute: loadPrices,
-  } = useAsyncCallback((onProgress) => fetchMiningPriceRows(regionId, onProgress));
+  } = useAsyncCallback(({ onProgress }) => fetchMiningPriceRows(regionId, onProgress));
 
   // Load prices for the default (or shared-link) region as soon as the page opens.
   useEffect(() => {
