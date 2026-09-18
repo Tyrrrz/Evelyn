@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AsyncStatus from "../components/asyncStatus.tsx";
 import AutocompleteSelect from "../components/autocompleteSelect.tsx";
 import Layout from "../components/layout.tsx";
@@ -44,6 +44,7 @@ export default function LpStorePage() {
     false,
     boolSearchParam,
   );
+  const [wereBlueprintsIncluded, setWereBlueprintsIncluded] = useState<boolean | null>(null);
   const [includeVolatileMarkets, setIncludeVolatileMarkets] = useSearchParamState(
     "includeVolatileMarkets",
     false,
@@ -62,42 +63,25 @@ export default function LpStorePage() {
     progress,
     timestamp,
     execute,
-  } = useAsyncCallback(({ onProgress }, includeBlueprintsArg: boolean) => {
+  } = useAsyncCallback(({ onProgress }) => {
     if (!selectedCorp) throw new Error("No corporation selected");
-    return fetchLpStoreRows(
-      selectedCorp.corporation_id,
-      regionId,
-      includeBlueprintsArg,
-      onProgress,
-    );
+    return fetchLpStoreRows(selectedCorp.corporation_id, regionId, includeBlueprints, onProgress);
   });
 
   const handleSearch = () => {
-    if (selectedCorp) execute(includeBlueprints);
+    if (!selectedCorp) return;
+    setWereBlueprintsIncluded(includeBlueprints);
+    execute();
   };
 
   // Immediately search when the page is loaded with an NPC corp already selected via query params.
   useEffect(() => {
     if (!selectedCorp) return;
-    execute(includeBlueprints);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setWereBlueprintsIncluded(includeBlueprints);
+    execute();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const handleIncludeBlueprintsChange = (checked: boolean) => {
-    if (loading) return;
-
-    setIncludeBlueprints(checked);
-
-    // Blueprint reward offers are only ever included in `rows` when the previous fetch requested
-    // them, so unchecking never requires a reload (blueprint rows are simply filtered out below),
-    // and checking only requires one if the currently-loaded data doesn't already have them.
-    const hasBlueprintRows = (rows ?? []).some(
-      (row) => row.blueprintMaterials.length > 0 || row.typeName.endsWith(" Blueprint"),
-    );
-    if (checked && !hasBlueprintRows && selectedCorp && timestamp) {
-      execute(checked);
-    }
-  };
 
   const filteredRows = (rows ?? []).filter(
     (row) =>
@@ -179,7 +163,7 @@ export default function LpStorePage() {
             type="checkbox"
             checked={includeBlueprints}
             disabled={loading}
-            onChange={(e) => handleIncludeBlueprintsChange(e.target.checked)}
+            onChange={(e) => setIncludeBlueprints(e.target.checked)}
             className="rounded border-zinc-600 bg-zinc-800"
           />
           Include blueprints
@@ -213,6 +197,12 @@ export default function LpStorePage() {
         timestamp={timestamp}
         summary={`${filteredRows.length} offers`}
       />
+
+      {includeBlueprints && !loading && timestamp !== null && wereBlueprintsIncluded === false && (
+        <div className="mb-4 text-center text-sm text-amber-400">
+          Blueprint reward offers were not fetched. Press Search again to include them.
+        </div>
+      )}
 
       {filteredRows.length > 0 && <LpStoreTable rows={filteredRows} />}
 
