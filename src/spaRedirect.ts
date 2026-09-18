@@ -4,7 +4,7 @@
 // app root, where `restoreRedirectedPath` decodes it back before the router
 // mounts. Based on https://github.com/rafgraph/spa-github-pages.
 
-export function redirectToRootWithEncodedPath() {
+export const redirectToRootWithEncodedPath = () => {
   const base = import.meta.env.BASE_URL;
   const baseRoot = base.endsWith("/") ? base.slice(0, -1) : base;
 
@@ -17,9 +17,9 @@ export function redirectToRootWithEncodedPath() {
   const search = location.search ? "&" + location.search.slice(1).replace(/&/g, "~and~") : "";
 
   location.replace(baseRoot + "/?/" + rest.replace(/&/g, "~and~") + search + location.hash);
-}
+};
 
-export function restoreRedirectedPath() {
+export const restoreRedirectedPath = () => {
   const location = window.location;
   if (!location.search.startsWith("?/")) {
     return;
@@ -38,4 +38,4 @@ export function restoreRedirectedPath() {
     "",
     location.pathname.slice(0, -1) + path + search + location.hash,
   );
-}
+};

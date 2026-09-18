@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-export default function HomePage() {
+const HomePage = () => {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 px-6 text-zinc-100">
       <header className="mb-12 text-center">
@@ -50,4 +50,6 @@ export default function HomePage() {
       </div>
     </div>
   );
-}
+};
+
+export default HomePage;

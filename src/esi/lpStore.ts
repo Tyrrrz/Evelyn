@@ -19,7 +19,7 @@ export type Ingredient = {
   quantity: number;
   /** Best sell price for this item, or `null` if the region has no sell orders for it. */
   sellPrice: number | null;
-}
+};
 
 export type LpStoreRow = {
   offerId: number;
@@ -48,13 +48,13 @@ export type LpStoreRow = {
   blueprintMaterialsIskCost: number;
   immediateLiquidityLp: number;
   immediateLiquidityIsk: number;
-}
+};
 
 const BATCH_SIZE = 10;
 
-function memoizeByTypeId<T>(
+const memoizeByTypeId = <T>(
   fetcher: (typeId: number) => Promise<T>,
-): (typeId: number) => Promise<T> {
+): ((typeId: number) => Promise<T>) => {
   const cache = new Map<number, Promise<T>>();
 
   return (typeId) => {
@@ -65,7 +65,7 @@ function memoizeByTypeId<T>(
     cache.set(typeId, result);
     return result;
   };
-}
+};
 
 /**
  * Computes how much LP (and the resulting net ISK) can be immediately
@@ -73,12 +73,12 @@ function memoizeByTypeId<T>(
  * orders within 5% of the best buy price from highest to lowest, filling
  * only whole exchanges (since partial exchanges can't be redeemed).
  */
-function computeImmediateLiquidity(
+const computeImmediateLiquidity = (
   levels: { price: number; volume: number }[],
   lpCost: number,
   quantity: number,
   requiredIskCostPerExchange: number,
-): { lp: number; isk: number } {
+): { lp: number; isk: number } => {
   if (lpCost <= 0 || quantity <= 0) return { lp: 0, isk: 0 };
 
   const totalVolume = levels.reduce((s, l) => s + l.volume, 0);
@@ -96,14 +96,14 @@ function computeImmediateLiquidity(
 
   const netIsk = grossIsk - exchanges * requiredIskCostPerExchange;
   return { lp: exchanges * lpCost, isk: netIsk };
-}
+};
 
-export async function fetchLpStoreRows(
+export const fetchLpStoreRows = async (
   corporationId: number,
   regionId: number,
   includeBlueprints: boolean,
   onProgress?: (fraction: number) => void,
-): Promise<LpStoreRow[]> {
+): Promise<LpStoreRow[]> => {
   const allOffers = await getLpOffers(corporationId);
   const getCachedMarketOrders = memoizeByTypeId((typeId) => getMarketOrders(typeId, regionId));
   const getCachedMarketHistory = memoizeByTypeId((typeId) => getMarketHistory(typeId, regionId));
@@ -269,4 +269,4 @@ export async function fetchLpStoreRows(
   }
 
   return rows;
-}
+};

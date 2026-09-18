@@ -16,7 +16,7 @@ const ESI_BASE = "https://esi.evetech.net/latest";
 export type Corporation = {
   corporation_id: number;
   name: string;
-}
+};
 
 export type LpOffer = {
   offer_id: number;
@@ -25,7 +25,7 @@ export type LpOffer = {
   lp_cost: number;
   isk_cost: number;
   required_items: { type_id: number; quantity: number }[];
-}
+};
 
 export type MarketOrder = {
   order_id: number;
@@ -33,42 +33,42 @@ export type MarketOrder = {
   price: number;
   volume_remain: number;
   is_buy_order: boolean;
-}
+};
 
 export type MarketHistoryEntry = {
   date: string;
   average: number;
   volume: number;
-}
+};
 
 export type TypeInfo = {
   name: string;
   type_id: number;
-}
+};
 
 export type BlueprintInfo = {
   productTypeId: number;
   productQuantity: number;
   materials: { typeId: number; quantity: number }[];
-}
+};
 
 /** All blueprint item type names in EVE end with this suffix. */
-export function isBlueprintTypeName(typeName: string): boolean {
+export const isBlueprintTypeName = (typeName: string): boolean => {
   return typeName.endsWith(" Blueprint");
-}
+};
 
 /**
  * Looks up the manufacturing recipe (product + materials) for a blueprint type. Returns null if
  * the type isn't a manufacturable blueprint or isn't present in the bundled dataset.
  */
-export function getBlueprintInfo(blueprintTypeId: number): BlueprintInfo | null {
+export const getBlueprintInfo = (blueprintTypeId: number): BlueprintInfo | null => {
   return (blueprintData as Record<string, BlueprintInfo>)[blueprintTypeId] ?? null;
-}
+};
 
 // Long-lived in-memory cache for type info (names don't change often)
 const typeInfoCache = new Map<number, TypeInfo>();
 
-async function esiGet<T>(path: string, cacheable = false, notFoundValue?: T): Promise<T> {
+const esiGet = async <T>(path: string, cacheable = false, notFoundValue?: T): Promise<T> => {
   const url = `${ESI_BASE}${path}`;
   const init: RequestInit = cacheable ? { cache: "default" } : { cache: "no-store" };
   const res = await fetch(url, {
@@ -83,9 +83,9 @@ async function esiGet<T>(path: string, cacheable = false, notFoundValue?: T): Pr
     throw new Error(`ESI ${res.status}: ${url}`);
   }
   return res.json() as Promise<T>;
-}
+};
 
-async function esiPost<T>(path: string, body: unknown): Promise<T> {
+const esiPost = async <T>(path: string, body: unknown): Promise<T> => {
   const url = `${ESI_BASE}${path}`;
   const res = await fetch(url, {
     method: "POST",
@@ -97,13 +97,13 @@ async function esiPost<T>(path: string, body: unknown): Promise<T> {
     throw new Error(`ESI ${res.status}: ${url}`);
   }
   return res.json() as Promise<T>;
-}
+};
 
-async function esiGetAllPages<T>(
+const esiGetAllPages = async <T>(
   path: string,
   extraSep = "&",
   treatNotFoundAsEmpty = false,
-): Promise<T[]> {
+): Promise<T[]> => {
   const url = `${ESI_BASE}${path}`;
   // Price data is never cached
   const res = await fetch(url, {
@@ -125,53 +125,53 @@ async function esiGetAllPages<T>(
     ),
   );
   return firstPage.concat(...rest);
-}
+};
 
 /**
  * All NPC corporations from the bundled dataset (see scripts/generate-npc-corporations.mjs),
  * sorted alphabetically. The ESI search endpoint does not reliably return NPC corporations, so
  * this data is bundled locally instead.
  */
-export function getCorporations(): Corporation[] {
+export const getCorporations = (): Corporation[] => {
   return (npcCorporationData as { corporationId: number; name: string }[])
     .map((c) => ({ corporation_id: c.corporationId, name: c.name }))
     .sort((a, b) => a.name.localeCompare(b.name));
-}
+};
 
-export async function getLpOffers(corporationId: number): Promise<LpOffer[]> {
+export const getLpOffers = async (corporationId: number): Promise<LpOffer[]> => {
   // LP store offers don't change often
   return esiGet<LpOffer[]>(`/loyalty/stores/${corporationId}/offers/`, true);
-}
+};
 
-export async function getMarketOrders(typeId: number, regionId: number): Promise<MarketOrder[]> {
+export const getMarketOrders = async (typeId: number, regionId: number): Promise<MarketOrder[]> => {
   // Market orders: always fresh. A 404 means the type isn't marketable in this region (e.g.
   // container/crate reward items that can't themselves be bought or sold) — treat as no orders.
   return esiGetAllPages<MarketOrder>(`/markets/${regionId}/orders/?type_id=${typeId}`, "&", true);
-}
+};
 
-export async function getMarketHistory(
+export const getMarketHistory = async (
   typeId: number,
   regionId: number,
-): Promise<MarketHistoryEntry[]> {
+): Promise<MarketHistoryEntry[]> => {
   // History updates once a day — cacheable. A 404 means the type isn't marketable in this
   // region, so treat it as no history rather than an error.
   return esiGet<MarketHistoryEntry[]>(`/markets/${regionId}/history/?type_id=${typeId}`, true, []);
-}
+};
 
-export async function getTypeInfo(typeId: number): Promise<TypeInfo> {
+export const getTypeInfo = async (typeId: number): Promise<TypeInfo> => {
   const cached = typeInfoCache.get(typeId);
   if (cached) return cached;
   const t = await esiGet<{ name: string }>(`/universe/types/${typeId}/`, true);
   const info: TypeInfo = { type_id: typeId, name: t.name };
   typeInfoCache.set(typeId, info);
   return info;
-}
+};
 
-export async function getTypeInfoBatch(typeIds: number[]): Promise<Map<number, TypeInfo>> {
+export const getTypeInfoBatch = async (typeIds: number[]): Promise<Map<number, TypeInfo>> => {
   const unique = [...new Set(typeIds)];
   const results = await Promise.all(unique.map((id) => getTypeInfo(id)));
   return new Map(results.map((t) => [t.type_id, t]));
-}
+};
 
 /** Max number of names ESI's /universe/ids/ endpoint accepts per request. */
 const RESOLVE_NAMES_BATCH_SIZE = 500;
@@ -181,7 +181,7 @@ const RESOLVE_NAMES_BATCH_SIZE = 500;
  * ESI's name-resolution endpoint. Names are matched exactly (case-sensitive); names that don't
  * match any known item type (of any kind — not just inventory types) are omitted from the result.
  */
-export async function resolveTypeIdsByName(names: string[]): Promise<Map<string, number>> {
+export const resolveTypeIdsByName = async (names: string[]): Promise<Map<string, number>> => {
   const unique = [...new Set(names)];
   const result = new Map<string, number>();
 
@@ -197,7 +197,7 @@ export async function resolveTypeIdsByName(names: string[]): Promise<Map<string,
   }
 
   return result;
-}
+};
 
 /**
  * "5% method" price, as used by evetycoon/buzzwork: outlier orders are
@@ -206,7 +206,7 @@ export async function resolveTypeIdsByName(names: string[]): Promise<Map<string,
  * careless players rather than reflect the real market), then the price is
  * the volume-weighted average over the best 5% of the remaining volume.
  */
-function fivePercentPrice(orders: MarketOrder[], isBuyOrder: boolean): number | null {
+const fivePercentPrice = (orders: MarketOrder[], isBuyOrder: boolean): number | null => {
   const side = orders
     .filter((o) => o.is_buy_order === isBuyOrder)
     .sort((a, b) => (isBuyOrder ? b.price - a.price : a.price - b.price));
@@ -232,33 +232,33 @@ function fivePercentPrice(orders: MarketOrder[], isBuyOrder: boolean): number | 
   }
 
   return accumulatedVolume > 0 ? weightedSum / accumulatedVolume : bestPrice;
-}
+};
 
 /** Highest buy order price, using the 5% method to filter out outliers */
-export function bestBuyPrice(orders: MarketOrder[]): number | null {
+export const bestBuyPrice = (orders: MarketOrder[]): number | null => {
   return fivePercentPrice(orders, true);
-}
+};
 
 /** Lowest sell order price, using the 5% method to filter out outliers */
-export function bestSellPrice(orders: MarketOrder[]): number | null {
+export const bestSellPrice = (orders: MarketOrder[]): number | null => {
   return fivePercentPrice(orders, false);
-}
+};
 
 export type BuyOrderLevel = {
   price: number;
   volume: number;
-}
+};
 
 /**
  * Returns buy orders priced within `pct` of `referencePrice`, sorted from
  * highest to lowest price — i.e. the order in which they would realistically
  * be filled when dumping items onto the market.
  */
-export function buyOrderLevels(
+export const buyOrderLevels = (
   orders: MarketOrder[],
   referencePrice: number,
   pct = 0.05,
-): BuyOrderLevel[] {
+): BuyOrderLevel[] => {
   return orders
     .filter(
       (o) =>
@@ -268,14 +268,14 @@ export function buyOrderLevels(
     )
     .sort((a, b) => b.price - a.price)
     .map((o) => ({ price: o.price, volume: o.volume_remain }));
-}
+};
 
 /** Average daily volume over the last 30 days of market history */
-export function avgDailyVolume(history: MarketHistoryEntry[]): number {
+export const avgDailyVolume = (history: MarketHistoryEntry[]): number => {
   const recent = history.slice(-30);
   if (!recent.length) return 0;
   return recent.reduce((s, h) => s + h.volume, 0) / recent.length;
-}
+};
 
 /**
  * Detects whether a market looks volatile or manipulated and is therefore risky to rely on for
@@ -284,11 +284,11 @@ export function avgDailyVolume(history: MarketHistoryEntry[]): number {
  *   potential hallmark of a market being pumped (or wash-traded) rather than one that has settled
  *   at a new, sustainable price.
  */
-export function isMarketVolatile(
+export const isMarketVolatile = (
   history: MarketHistoryEntry[],
   buy: number | null,
   sell: number | null,
-): boolean {
+): boolean => {
   if (buy !== null && sell !== null && buy > 0 && sell / buy >= 1.5) return true;
 
   const recent = history.slice(-3);
@@ -301,4 +301,4 @@ export function isMarketVolatile(
   }
 
   return false;
-}
+};

@@ -4,7 +4,7 @@ import { bestBuyPrice, bestSellPrice, getMarketOrders, resolveTypeIdsByName } fr
 export type AppraisalItem = {
   name: string;
   quantity: number;
-}
+};
 
 export type AppraisalRow = {
   typeId: number;
@@ -16,7 +16,7 @@ export type AppraisalRow = {
   sellPrice: number | null;
   buyTotal: number | null;
   sellTotal: number | null;
-}
+};
 
 const BATCH_SIZE = 10;
 
@@ -26,7 +26,7 @@ const BATCH_SIZE = 10;
  * whitespace. Duplicate item names are collapsed by summing their quantities. Lines that don't end
  * in a quantity are ignored.
  */
-export function parseItemList(text: string): AppraisalItem[] {
+export const parseItemList = (text: string): AppraisalItem[] => {
   const quantityByName = new Map<string, number>();
   for (const rawLine of text.split("\n")) {
     const line = rawLine.trim();
@@ -42,18 +42,18 @@ export function parseItemList(text: string): AppraisalItem[] {
     quantityByName.set(name, (quantityByName.get(name) ?? 0) + quantity);
   }
   return [...quantityByName].map(([name, quantity]) => ({ name, quantity }));
-}
+};
 
 /**
  * Resolves each item's name to a type ID and fetches its best buy/sell price in the given region.
  * Items whose name can't be resolved to a known item type are returned in `unresolvedNames`
  * rather than being silently dropped, so the UI can flag them.
  */
-export async function fetchAppraisalRows(
+export const fetchAppraisalRows = async (
   items: AppraisalItem[],
   regionId: number,
   onProgress?: (fraction: number) => void,
-): Promise<{ rows: AppraisalRow[]; unresolvedNames: string[] }> {
+): Promise<{ rows: AppraisalRow[]; unresolvedNames: string[] }> => {
   const typeIdByName = await resolveTypeIdsByName(items.map((i) => i.name));
   const unresolvedNames = items
     .map((i) => i.name)
@@ -90,4 +90,4 @@ export async function fetchAppraisalRows(
   }
 
   return { rows, unresolvedNames };
-}
+};

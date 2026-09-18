@@ -3,9 +3,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 type SelectOption<T extends string | number> = {
   value: T;
   label: string;
-}
+};
 
-function getFuzzyScore(label: string, query: string): number {
+const getFuzzyScore = (label: string, query: string): number => {
   const normalizedLabel = label.toLowerCase();
   const normalizedQuery = query.toLowerCase().trim();
   if (!normalizedQuery) return 0;
@@ -27,9 +27,9 @@ function getFuzzyScore(label: string, query: string): number {
   }
 
   return score;
-}
+};
 
-export default function AutocompleteSelect<T extends string | number>({
+export const AutocompleteSelect = <T extends string | number>({
   id,
   value,
   options,
@@ -47,7 +47,7 @@ export default function AutocompleteSelect<T extends string | number>({
   className?: string;
   autoFocus?: boolean;
   onChange: (value: T) => void;
-}) {
+}) => {
   const selectedOption = useMemo(
     () => options.find((o) => o.value === value) ?? null,
     [options, value],
@@ -170,4 +170,6 @@ export default function AutocompleteSelect<T extends string | number>({
       )}
     </div>
   );
-}
+};
+
+export { AutocompleteSelect as default };
