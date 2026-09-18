@@ -220,6 +220,7 @@ export default function SigTrackerPage() {
                 options={allSystems}
                 placeholder="e.g. Jita"
                 className="w-full"
+                autoFocus
               />
             </div>
 
