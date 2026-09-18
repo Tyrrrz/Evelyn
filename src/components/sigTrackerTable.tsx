@@ -2,13 +2,13 @@ import { useState } from "react";
 import type { SignatureRecord } from "../utils/sigTracker.ts";
 
 /** Badge color classes keyed by entity kind, falling back to zinc for unrecognized kinds. */
-function entityKindClass(entityKind: string): string {
+const entityKindClass = (entityKind: string): string => {
   if (/anomaly/iu.test(entityKind)) return "bg-sky-900 text-sky-300";
   if (/signature/iu.test(entityKind)) return "bg-violet-900 text-violet-300";
   return "bg-zinc-800 text-zinc-400";
-}
+};
 
-function NoteCell({ note, onChange }: { note: string; onChange: (note: string) => void }) {
+const NoteCell = ({ note, onChange }: { note: string; onChange: (note: string) => void }) => {
   const [value, setValue] = useState(note);
 
   return (
@@ -23,9 +23,9 @@ function NoteCell({ note, onChange }: { note: string; onChange: (note: string) =
       className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-100 focus:ring-2 focus:ring-amber-500 focus:outline-none"
     />
   );
-}
+};
 
-export default function SigTrackerTable({
+const SigTrackerTable = ({
   rows,
   onNoteChange,
   onRemove,
@@ -33,7 +33,7 @@ export default function SigTrackerTable({
   rows: SignatureRecord[];
   onNoteChange: (sigId: string, note: string) => void;
   onRemove: (sigId: string) => void;
-}) {
+}) => {
   const sorted = [...rows].sort((a, b) => a.id.localeCompare(b.id));
 
   return (
@@ -109,4 +109,6 @@ export default function SigTrackerTable({
       </table>
     </div>
   );
-}
+};
+
+export { SigTrackerTable as default };

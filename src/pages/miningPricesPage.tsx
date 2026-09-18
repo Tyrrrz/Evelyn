@@ -8,7 +8,7 @@ import { DEFAULT_REGION_ID, getRegions } from "../esi/regions.ts";
 import { useAsyncCallback } from "../hooks/useAsyncCallback.ts";
 import { numberSearchParam, useSearchParamState } from "../hooks/useSearchParamState.ts";
 
-export default function MiningPricesPage() {
+const MiningPricesPage = () => {
   const regions = getRegions();
 
   const [regionId, setRegionId] = useSearchParamState<number>("region", DEFAULT_REGION_ID, {
@@ -85,4 +85,6 @@ export default function MiningPricesPage() {
       )}
     </Layout>
   );
-}
+};
+
+export default MiningPricesPage;

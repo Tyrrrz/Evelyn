@@ -1,21 +1,15 @@
 import type { ReactNode } from "react";
 
-interface AsyncStatusProps {
+type AsyncStatusProps = {
   error: string | null;
   loading: boolean;
   progress: number | null;
   timestamp: Date | null;
   summary?: ReactNode;
-}
+};
 
 /** Renders the error / loading+progress / fetched-summary blocks shared by async-driven pages. */
-export default function AsyncStatus({
-  error,
-  loading,
-  progress,
-  timestamp,
-  summary,
-}: AsyncStatusProps) {
+const AsyncStatus = ({ error, loading, progress, timestamp, summary }: AsyncStatusProps) => {
   return (
     <>
       {error && <div className="mb-4 text-center text-sm text-red-400">Error: {error}</div>}
@@ -33,4 +27,6 @@ export default function AsyncStatus({
       )}
     </>
   );
-}
+};
+
+export default AsyncStatus;

@@ -12,16 +12,16 @@ import { decodeStateFromUrlParam, encodeStateToUrlParam } from "../utils/urlStat
 const STATE_PARAM = "items";
 const REGION_PARAM = "region";
 
-interface EncodedState {
+type EncodedState = {
   text: string;
   region: number;
-}
+};
 
 const PLACEHOLDER_TEXT = "Copy-paste items from your inventory here";
 const REGION_SELECT_ID = "item-appraisal-region";
 const ITEM_LIST_TEXTAREA_ID = "item-appraisal-items";
 
-function isEncodedState(value: unknown): value is EncodedState {
+const isEncodedState = (value: unknown): value is EncodedState => {
   return (
     typeof value === "object" &&
     value !== null &&
@@ -29,9 +29,9 @@ function isEncodedState(value: unknown): value is EncodedState {
     typeof value.region === "number" &&
     Number.isFinite(value.region)
   );
-}
+};
 
-function RegionSelect({
+const RegionSelect = ({
   regionId,
   setRegionId,
   disabled,
@@ -39,7 +39,7 @@ function RegionSelect({
   regionId: number;
   setRegionId: (id: number) => void;
   disabled: boolean;
-}) {
+}) => {
   const regions = getRegions();
   return (
     <div>
@@ -56,9 +56,9 @@ function RegionSelect({
       />
     </div>
   );
-}
+};
 
-function ItemListTextarea({
+const ItemListTextarea = ({
   text,
   setText,
   disabled,
@@ -66,7 +66,7 @@ function ItemListTextarea({
   text: string;
   setText: (text: string) => void;
   disabled: boolean;
-}) {
+}) => {
   return (
     <div className="w-full max-w-2xl">
       <label
@@ -88,9 +88,9 @@ function ItemListTextarea({
       />
     </div>
   );
-}
+};
 
-export default function ItemAppraisalPage() {
+export const ItemAppraisalPage = () => {
   const regions = getRegions();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -104,6 +104,7 @@ export default function ItemAppraisalPage() {
     } catch {
       return null;
     }
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -195,4 +196,6 @@ export default function ItemAppraisalPage() {
       )}
     </Layout>
   );
-}
+};
+
+export { ItemAppraisalPage as default };

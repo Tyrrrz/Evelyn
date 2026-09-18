@@ -13,7 +13,7 @@ import {
   useSearchParamState,
 } from "../hooks/useSearchParamState.ts";
 
-export default function LpStorePage() {
+const LpStorePage = () => {
   const corporations = useMemo(() => getCorporations(), [getCorporations]);
   const regions = useMemo(() => getRegions(), [getRegions]);
 
@@ -220,4 +220,6 @@ export default function LpStorePage() {
       )}
     </Layout>
   );
-}
+};
+
+export default LpStorePage;

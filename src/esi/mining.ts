@@ -6,15 +6,15 @@ import miningData from "./miningData.json";
 
 export type MiningCategory = "ore" | "gas" | "ice";
 
-export interface MiningItem {
+export type MiningItem = {
   typeId: number;
   name: string;
   /** Packaged volume, in m³ per unit. */
   volume: number;
   category: MiningCategory;
-}
+};
 
 /** All bundled mining types (ore, gas, ice — including their variants and compressed forms), sorted alphabetically by name within each category. */
-export function getMiningItems(): MiningItem[] {
+export const getMiningItems = (): MiningItem[] => {
   return miningData as MiningItem[];
-}
+};

@@ -2,7 +2,7 @@ import { bestBuyPrice, bestSellPrice, getMarketOrders } from "./client.ts";
 import type { MiningCategory, MiningItem } from "./mining.ts";
 import { getMiningItems } from "./mining.ts";
 
-export interface MiningPriceRow {
+export type MiningPriceRow = {
   typeId: number;
   typeName: string;
   category: MiningCategory;
@@ -13,22 +13,22 @@ export interface MiningPriceRow {
   sellPricePerUnit: number | null;
   buyPricePerM3: number | null;
   sellPricePerM3: number | null;
-}
+};
 
 const BATCH_SIZE = 10;
 
-function pricePerM3(pricePerUnit: number | null, volume: number): number | null {
+const pricePerM3 = (pricePerUnit: number | null, volume: number): number | null => {
   return pricePerUnit !== null && volume > 0 ? pricePerUnit / volume : null;
-}
+};
 
 /**
  * Fetches the current best buy/sell prices (per unit and per m³) for every bundled mining
  * type (ore, gas, ice) in the given region.
  */
-export async function fetchMiningPriceRows(
+export const fetchMiningPriceRows = async (
   regionId: number,
   onProgress?: (fraction: number) => void,
-): Promise<MiningPriceRow[]> {
+): Promise<MiningPriceRow[]> => {
   const miningItems = getMiningItems();
 
   const rows: MiningPriceRow[] = [];
@@ -59,4 +59,4 @@ export async function fetchMiningPriceRows(
   }
 
   return rows;
-}
+};

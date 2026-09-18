@@ -5,32 +5,32 @@
  */
 
 /** A single signature/anomaly line as parsed from a copy-pasted probe scanner list. */
-export interface ParsedSignature {
+export type ParsedSignature = {
   id: string;
   entityKind: string;
   sigKind: string;
   name: string;
   strength: number;
   distance: string;
-}
+};
 
-export interface SignatureRecord extends ParsedSignature {
+export type SignatureRecord = {
   note: string;
   firstSeenAt: string;
   updatedAt: string;
-}
+} & ParsedSignature;
 
-export interface SystemRecord {
+export type SystemRecord = {
   name: string;
   updatedAt: string;
   signatures: Record<string, SignatureRecord>;
-}
+};
 
-export interface SigTrackerStore {
+export type SigTrackerStore = {
   systems: Record<string, SystemRecord>;
-}
+};
 
-export interface ImportDiff {
+export type ImportDiff = {
   /** IDs of signatures that weren't previously known for this system. */
   added: string[];
   /** IDs of signatures that were already known, but had at least one field change. */
@@ -39,7 +39,7 @@ export interface ImportDiff {
   unchanged: string[];
   /** Signatures previously known for this system that weren't present in this import. */
   missing: SignatureRecord[];
-}
+};
 
 const STORAGE_KEY = "evelyn:sigTracker";
 const EXPIRATION_MS = 365 * 24 * 60 * 60 * 1000;
@@ -51,12 +51,12 @@ let storageError: string | null = null;
  * spaces instead, so both are accepted. Single spaces are preserved since signature/site names
  * are often made up of multiple words (e.g. "Relic Site").
  */
-function splitFields(line: string): string[] {
+const splitFields = (line: string): string[] => {
   return line
     .split(/\t+|\s{2,}/u)
     .map((f) => f.trim())
     .filter(Boolean);
-}
+};
 
 /**
  * Parses a copy-pasted probe scanner list, one signature per line, in the format:
@@ -64,7 +64,7 @@ function splitFields(line: string): string[] {
  * `EEY-668   Cosmic Signature   Relic Site  Decayed Serpentis Particle Accelerator   100.0%   52.16 AU`.
  * Lines that don't match this shape are ignored.
  */
-export function parseSignatureList(text: string): ParsedSignature[] {
+export const parseSignatureList = (text: string): ParsedSignature[] => {
   const results: ParsedSignature[] = [];
 
   for (const rawLine of text.split("\n")) {
@@ -87,9 +87,9 @@ export function parseSignatureList(text: string): ParsedSignature[] {
   }
 
   return results;
-}
+};
 
-function isSigTrackerStore(value: unknown): value is SigTrackerStore {
+const isSigTrackerStore = (value: unknown): value is SigTrackerStore => {
   return (
     typeof value === "object" &&
     value !== null &&
@@ -97,9 +97,9 @@ function isSigTrackerStore(value: unknown): value is SigTrackerStore {
     typeof (value as { systems: unknown }).systems === "object" &&
     (value as { systems: unknown }).systems !== null
   );
-}
+};
 
-function pruneExpired(store: SigTrackerStore): SigTrackerStore {
+const pruneExpired = (store: SigTrackerStore): SigTrackerStore => {
   const now = Date.now();
   const systems: SigTrackerStore["systems"] = {};
   for (const [name, system] of Object.entries(store.systems)) {
@@ -109,24 +109,24 @@ function pruneExpired(store: SigTrackerStore): SigTrackerStore {
     }
   }
   return { systems };
-}
+};
 
-function saveStore(store: SigTrackerStore): void {
+const saveStore = (store: SigTrackerStore): void => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
     storageError = null;
   } catch (error) {
     storageError = error instanceof Error ? error.message : "Unknown storage error";
   }
-}
+};
 
 /** Returns the latest storage error, if any. */
-export function getStorageError(): string | null {
+export const getStorageError = (): string | null => {
   return storageError;
-}
+};
 
 /** Loads the store from localStorage, pruning (and persisting the removal of) expired systems. */
-export function loadStore(): SigTrackerStore {
+export const loadStore = (): SigTrackerStore => {
   let parsed: unknown = null;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -141,20 +141,20 @@ export function loadStore(): SigTrackerStore {
   const pruned = pruneExpired(store);
   saveStore(pruned);
   return pruned;
-}
+};
 
 /** Returns the store's system names, sorted alphabetically. */
-export function getSystemNames(store: SigTrackerStore): string[] {
+export const getSystemNames = (store: SigTrackerStore): string[] => {
   return Object.keys(store.systems).sort((a, b) => a.localeCompare(b));
-}
+};
 
 /** Returns a system's signatures as a list, sorted by ID. */
-export function getSignatures(system: SystemRecord | undefined): SignatureRecord[] {
+export const getSignatures = (system: SystemRecord | undefined): SignatureRecord[] => {
   if (!system) return [];
   return Object.values(system.signatures).sort((a, b) => a.id.localeCompare(b.id));
-}
+};
 
-function fieldsEqual(a: SignatureRecord, b: ParsedSignature): boolean {
+const fieldsEqual = (a: SignatureRecord, b: ParsedSignature): boolean => {
   return (
     a.entityKind === b.entityKind &&
     a.sigKind === b.sigKind &&
@@ -162,17 +162,17 @@ function fieldsEqual(a: SignatureRecord, b: ParsedSignature): boolean {
     a.strength === b.strength &&
     a.distance === b.distance
   );
-}
+};
 
-function isUnknownSignatureField(value: string): boolean {
+const isUnknownSignatureField = (value: string): boolean => {
   return /^unknown$/iu.test(value);
-}
+};
 
-function mergeImportedSignature(
+const mergeImportedSignature = (
   prev: SignatureRecord,
   next: ParsedSignature,
   updatedAt: string,
-): SignatureRecord {
+): SignatureRecord => {
   return {
     ...prev,
     ...next,
@@ -186,7 +186,7 @@ function mergeImportedSignature(
         : next.name,
     updatedAt,
   };
-}
+};
 
 /**
  * Merges a freshly parsed signature list into the store for the given system: new signatures are
@@ -194,11 +194,11 @@ function mergeImportedSignature(
  * removed automatically — signatures missing from the import are reported in the diff so the
  * caller can decide whether to remove them (the pasted list may only be a partial/unscanned one).
  */
-export function importSignatures(
+export const importSignatures = (
   store: SigTrackerStore,
   systemName: string,
   parsed: ParsedSignature[],
-): { store: SigTrackerStore; diff: ImportDiff } {
+): { store: SigTrackerStore; diff: ImportDiff } => {
   const now = new Date().toISOString();
   const existingSignatures = store.systems[systemName]?.signatures ?? {};
   const signatures: Record<string, SignatureRecord> = {};
@@ -239,15 +239,15 @@ export function importSignatures(
   };
   saveStore(updatedStore);
   return { store: updatedStore, diff };
-}
+};
 
 /** Sets (or clears) the note on a single signature. */
-export function setSignatureNote(
+export const setSignatureNote = (
   store: SigTrackerStore,
   systemName: string,
   sigId: string,
   note: string,
-): SigTrackerStore {
+): SigTrackerStore => {
   const system = store.systems[systemName];
   const sig = system?.signatures[sigId];
   if (!system || !sig) return store;
@@ -263,14 +263,14 @@ export function setSignatureNote(
   };
   saveStore(updatedStore);
   return updatedStore;
-}
+};
 
 /** Removes a single signature from a system. */
-export function removeSignature(
+export const removeSignature = (
   store: SigTrackerStore,
   systemName: string,
   sigId: string,
-): SigTrackerStore {
+): SigTrackerStore => {
   const system = store.systems[systemName];
   if (!system) return store;
 
@@ -282,14 +282,14 @@ export function removeSignature(
   };
   saveStore(updatedStore);
   return updatedStore;
-}
+};
 
 /** Removes multiple signatures from a system in one go (e.g. those reported as "missing"). */
-export function removeSignatures(
+export const removeSignatures = (
   store: SigTrackerStore,
   systemName: string,
   sigIds: string[],
-): SigTrackerStore {
+): SigTrackerStore => {
   const system = store.systems[systemName];
   if (!system) return store;
 
@@ -301,21 +301,21 @@ export function removeSignatures(
   };
   saveStore(updatedStore);
   return updatedStore;
-}
+};
 
 /** Removes an entire system and all of its signatures. */
-export function removeSystem(store: SigTrackerStore, systemName: string): SigTrackerStore {
+export const removeSystem = (store: SigTrackerStore, systemName: string): SigTrackerStore => {
   const systems = { ...store.systems };
   delete systems[systemName];
 
   const updatedStore: SigTrackerStore = { systems };
   saveStore(updatedStore);
   return updatedStore;
-}
+};
 
 /** Removes all saved systems and signatures. */
-export function removeAllSystems(): SigTrackerStore {
+export const removeAllSystems = (): SigTrackerStore => {
   const updatedStore: SigTrackerStore = { systems: {} };
   saveStore(updatedStore);
   return updatedStore;
-}
+};

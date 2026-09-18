@@ -23,9 +23,9 @@ const idleState: AsyncCallbackState<never> = {
  * dev-mode double-invoke, or a user triggering search twice in a row) can't race to set state
  * from whichever promise settles last.
  */
-export function useAsyncCallback<Args extends unknown[], T>(
+export const useAsyncCallback = <Args extends unknown[], T>(
   task: (options: { onProgress?: (fraction: number) => void }, ...args: Args) => Promise<T>,
-) {
+) => {
   const [state, setState] = useState<AsyncCallbackState<T>>(idleState);
   const loadingRef = useRef(false);
 
@@ -74,4 +74,4 @@ export function useAsyncCallback<Args extends unknown[], T>(
   );
 
   return { ...state, execute };
-}
+};

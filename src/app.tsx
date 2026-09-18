@@ -6,7 +6,7 @@ import LpStorePage from "./pages/lpStorePage.tsx";
 import MiningPricesPage from "./pages/miningPricesPage.tsx";
 import SigTrackerPage from "./pages/sigTrackerPage.tsx";
 
-function App() {
+const App = () => {
   return (
     <>
       <Analytics />
@@ -19,6 +19,6 @@ function App() {
       </Routes>
     </>
   );
-}
+};
 
 export default App;

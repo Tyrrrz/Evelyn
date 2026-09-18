@@ -9,7 +9,7 @@ type SortKey = keyof Pick<
 
 type SortDir = "asc" | "desc";
 
-function sortRows(rows: LpStoreRow[], key: SortKey, dir: SortDir): LpStoreRow[] {
+const sortRows = (rows: LpStoreRow[], key: SortKey, dir: SortDir): LpStoreRow[] => {
   return [...rows].sort((a, b) => {
     const av = sortValue(a, key);
     const bv = sortValue(b, key);
@@ -21,34 +21,34 @@ function sortRows(rows: LpStoreRow[], key: SortKey, dir: SortDir): LpStoreRow[] 
     }
     return dir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
   });
-}
+};
 
 /** Returns the value to sort by for a given row/key, treating empty (dash-displayed) liquidity as 0. */
-function sortValue(row: LpStoreRow, key: SortKey): number | string | null {
+const sortValue = (row: LpStoreRow, key: SortKey): number | string | null => {
   if (key === "immediateLiquidityLp") {
     return row.lpCost > 0 && row.immediateLiquidityIsk > 0 ? row.immediateLiquidityLp : 0;
   }
   return row[key] as number | string | null;
-}
+};
 
 /**
  * Interpolates a red -> green color for a value on a [min, max] scale.
  * Values at or below min are red; values at/above max are green.
  */
-function ratioColor(value: number | null, min: number, max: number): string {
+const ratioColor = (value: number | null, min: number, max: number): string => {
   if (value === null) return "#71717a"; // zinc-500, unknown
 
   const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
   const hue = t * 120; // 0 = red, 120 = green
   return `hsl(${hue}, 75%, 45%)`;
-}
+};
 
-function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
+const SortIcon = ({ active, dir }: { active: boolean; dir: SortDir }) => {
   if (!active) return <span className="ml-1 opacity-30">↕</span>;
   return <span className="ml-1">{dir === "asc" ? "↑" : "↓"}</span>;
-}
+};
 
-function Th({
+const Th = ({
   col,
   children,
   title,
@@ -62,7 +62,7 @@ function Th({
   sortKey: SortKey;
   sortDir: SortDir;
   onSort: (k: SortKey) => void;
-}) {
+}) => {
   return (
     <th
       className="px-3 py-2 text-left text-xs font-semibold tracking-wide whitespace-nowrap uppercase transition-colors hover:bg-zinc-700"
@@ -80,9 +80,9 @@ function Th({
       </button>
     </th>
   );
-}
+};
 
-function IskLpCell({
+const IskLpCell = ({
   ratio,
   bestPrice,
   isVolatile,
@@ -92,7 +92,7 @@ function IskLpCell({
   bestPrice: number | null;
   isVolatile?: boolean;
   isUnpriced?: boolean;
-}) {
+}) => {
   return (
     <td className="px-3 py-2 tabular-nums">
       <div className="flex items-center gap-1.5">
@@ -119,9 +119,9 @@ function IskLpCell({
       {bestPrice !== null && <div className="text-xs text-zinc-500">{fmt(bestPrice)} ISK</div>}
     </td>
   );
-}
+};
 
-export default function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
+export const LpStoreTable = ({ rows }: { rows: LpStoreRow[] }) => {
   const [sortKey, setSortKey] = useState<SortKey>("lpToIskBuy");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -323,4 +323,6 @@ export default function LpStoreTable({ rows }: { rows: LpStoreRow[] }) {
       </div>
     </>
   );
-}
+};
+
+export { LpStoreTable as default };

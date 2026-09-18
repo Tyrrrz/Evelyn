@@ -22,7 +22,13 @@ const PLACEHOLDER_TEXT = "Copy-paste signatures from your probe scanner here";
 const SYSTEM_INPUT_ID = "sig-tracker-system";
 const SIGNATURE_LIST_TEXTAREA_ID = "sig-tracker-signatures";
 
-function DiffSummary({ diff, onRemoveMissing }: { diff: ImportDiff; onRemoveMissing: () => void }) {
+const DiffSummary = ({
+  diff,
+  onRemoveMissing,
+}: {
+  diff: ImportDiff;
+  onRemoveMissing: () => void;
+}) => {
   return (
     <div className="mb-4 flex flex-col items-center gap-2 text-sm">
       <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-zinc-300">
@@ -54,9 +60,9 @@ function DiffSummary({ diff, onRemoveMissing }: { diff: ImportDiff; onRemoveMiss
       )}
     </div>
   );
-}
+};
 
-function SystemList({
+const SystemList = ({
   systemNames,
   activeSystem,
   onSelect,
@@ -66,7 +72,7 @@ function SystemList({
   activeSystem: string;
   onSelect: (name: string) => void;
   onRemove: (name: string) => void;
-}) {
+}) => {
   if (systemNames.length === 0) {
     return <div className="text-sm text-zinc-500">No systems saved yet.</div>;
   }
@@ -101,9 +107,9 @@ function SystemList({
       ))}
     </ul>
   );
-}
+};
 
-export default function SigTrackerPage() {
+export const SigTrackerPage = () => {
   const [store, setStore] = useState<SigTrackerStore>(() => loadStore());
   const systemNames = getSystemNames(store);
 
@@ -285,4 +291,6 @@ export default function SigTrackerPage() {
       </div>
     </Layout>
   );
-}
+};
+
+export { SigTrackerPage as default };

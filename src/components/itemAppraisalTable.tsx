@@ -6,7 +6,7 @@ type SortKey = keyof Pick<AppraisalRow, "typeName" | "quantity" | "sellTotal" | 
 
 type SortDir = "asc" | "desc";
 
-function sortRows(rows: AppraisalRow[], key: SortKey, dir: SortDir): AppraisalRow[] {
+const sortRows = (rows: AppraisalRow[], key: SortKey, dir: SortDir): AppraisalRow[] => {
   return [...rows].sort((a, b) => {
     const av = a[key];
     const bv = b[key];
@@ -18,14 +18,14 @@ function sortRows(rows: AppraisalRow[], key: SortKey, dir: SortDir): AppraisalRo
     }
     return dir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
   });
-}
+};
 
-function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
+const SortIcon = ({ active, dir }: { active: boolean; dir: SortDir }) => {
   if (!active) return <span className="ml-1 opacity-30">↕</span>;
   return <span className="ml-1">{dir === "asc" ? "↑" : "↓"}</span>;
-}
+};
 
-function Th({
+const Th = ({
   col,
   children,
   title,
@@ -39,7 +39,7 @@ function Th({
   sortKey: SortKey;
   sortDir: SortDir;
   onSort: (k: SortKey) => void;
-}) {
+}) => {
   return (
     <th
       className="px-3 py-2 text-left text-xs font-semibold tracking-wide whitespace-nowrap uppercase transition-colors hover:bg-zinc-700"
@@ -57,35 +57,35 @@ function Th({
       </button>
     </th>
   );
-}
+};
 
 /**
  * Interpolates a yellow -> green color for a value on a [min, max] scale.
  * Values at or below min are yellow; values at/above max are green.
  */
-function ratioColor(value: number | null, min: number, max: number): string {
+const ratioColor = (value: number | null, min: number, max: number): string => {
   if (value === null) return "#71717a"; // zinc-500, unknown
 
   const t = max > min ? Math.max(0, Math.min(1, (value - min) / (max - min))) : 1;
   const hue = 60 + t * 60; // 60 = yellow, 120 = green
   return `hsl(${hue}, 75%, 45%)`;
-}
+};
 
 /** Computes the [min, max] range of a column's non-null values, for use with {@link ratioColor}. */
-function columnRange(rows: AppraisalRow[], key: SortKey): { min: number; max: number } {
+const columnRange = (rows: AppraisalRow[], key: SortKey): { min: number; max: number } => {
   const values = rows.map((r) => r[key]).filter((v): v is number => typeof v === "number");
   if (!values.length) return { min: 0, max: 0 };
   return { min: Math.min(...values), max: Math.max(...values) };
-}
+};
 
-function formatIsk(value: number | null): string {
+const formatIsk = (value: number | null): string => {
   return value === null ? "—" : `${fmt(value)} ISK`;
-}
+};
 
-function summarizeTotals(
+const summarizeTotals = (
   rows: AppraisalRow[],
   key: "buyTotal" | "sellTotal",
-): { value: number; hasUnknown: boolean; allUnknown: boolean } {
+): { value: number; hasUnknown: boolean; allUnknown: boolean } => {
   let value = 0;
   let hasUnknown = false;
   let hasKnown = false;
@@ -102,10 +102,10 @@ function summarizeTotals(
   }
 
   return { value, hasUnknown, allUnknown: hasUnknown && !hasKnown };
-}
+};
 
 /** Merged cell showing the total value (colored) and, if quantity isn't 1, the per-item price below. */
-function ValueCell({
+const ValueCell = ({
   total,
   price,
   quantity,
@@ -115,7 +115,7 @@ function ValueCell({
   price: number | null;
   quantity: number;
   range: { min: number; max: number };
-}) {
+}) => {
   return (
     <td className="px-3 py-2 tabular-nums">
       <div className="font-semibold" style={{ color: ratioColor(total, range.min, range.max) }}>
@@ -124,9 +124,9 @@ function ValueCell({
       {quantity !== 1 && <div className="text-xs text-zinc-500">{formatIsk(price)} per item</div>}
     </td>
   );
-}
+};
 
-export default function ItemAppraisalTable({ rows }: { rows: AppraisalRow[] }) {
+export const ItemAppraisalTable = ({ rows }: { rows: AppraisalRow[] }) => {
   const [sortKey, setSortKey] = useState<SortKey>("sellTotal");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -238,4 +238,6 @@ export default function ItemAppraisalTable({ rows }: { rows: AppraisalRow[] }) {
       </table>
     </div>
   );
-}
+};
+
+export { ItemAppraisalTable as default };
