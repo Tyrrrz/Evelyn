@@ -198,14 +198,11 @@ export default function LpStorePage() {
         summary={`${filteredRows.length} offers`}
       />
 
-      {includeBlueprints &&
-        !loading &&
-        timestamp !== null &&
-        wereBlueprintsIncluded === false && (
-          <div className="mb-4 text-center text-sm text-amber-400">
-            Blueprint reward offers were not fetched. Press Search again to include them.
-          </div>
-        )}
+      {includeBlueprints && !loading && timestamp !== null && wereBlueprintsIncluded === false && (
+        <div className="mb-4 text-center text-sm text-amber-400">
+          Blueprint reward offers were not fetched. Press Search again to include them.
+        </div>
+      )}
 
       {filteredRows.length > 0 && <LpStoreTable rows={filteredRows} />}
 
