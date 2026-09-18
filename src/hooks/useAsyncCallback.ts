@@ -36,20 +36,23 @@ export function useAsyncCallback<Args extends unknown[], T>(
 
       setState({ data: null, error: null, loading: true, progress: null, timestamp: null });
 
-      task(
-        {
-          onProgress: (fraction) => {
-            setState({
-              data: null,
-              error: null,
-              loading: true,
-              progress: fraction,
-              timestamp: null,
-            });
-          },
-        },
-        ...args,
-      )
+      Promise.resolve()
+        .then(() =>
+          task(
+            {
+              onProgress: (fraction) => {
+                setState({
+                  data: null,
+                  error: null,
+                  loading: true,
+                  progress: fraction,
+                  timestamp: null,
+                });
+              },
+            },
+            ...args,
+          ),
+        )
         .then((data) => {
           setState({ data, error: null, loading: false, progress: null, timestamp: new Date() });
         })
