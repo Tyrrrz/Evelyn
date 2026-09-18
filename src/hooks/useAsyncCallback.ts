@@ -36,6 +36,7 @@ export function useAsyncCallback<Args extends unknown[], T>(
 
       setState({ data: null, error: null, loading: true, progress: null, timestamp: null });
 
+      // Wrap the whole function in a Promise so that synchronous errors are handled in the same way
       Promise.resolve()
         .then(() =>
           task(
