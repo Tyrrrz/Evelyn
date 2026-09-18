@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AsyncStatus from "../components/asyncStatus.tsx";
 import AutocompleteSelect from "../components/autocompleteSelect.tsx";
 import Layout from "../components/layout.tsx";
@@ -44,6 +44,7 @@ export default function LpStorePage() {
     false,
     boolSearchParam,
   );
+  const [wereBlueprintsIncluded, setWereBlueprintsIncluded] = useState<boolean | null>(null);
   const [includeVolatileMarkets, setIncludeVolatileMarkets] = useSearchParamState(
     "includeVolatileMarkets",
     false,
@@ -68,12 +69,16 @@ export default function LpStorePage() {
   });
 
   const handleSearch = () => {
-    if (selectedCorp) execute();
+    if (!selectedCorp) return;
+    setWereBlueprintsIncluded(includeBlueprints);
+    execute();
   };
 
   // Immediately search when the page is loaded with an NPC corp already selected via query params.
   useEffect(() => {
     if (!selectedCorp) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setWereBlueprintsIncluded(includeBlueprints);
     execute();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -196,9 +201,7 @@ export default function LpStorePage() {
       {includeBlueprints &&
         !loading &&
         timestamp !== null &&
-        !(rows ?? []).some(
-          (row) => row.blueprintMaterials.length > 0 || row.typeName.endsWith(" Blueprint"),
-        ) && (
+        wereBlueprintsIncluded === false && (
           <div className="mb-4 text-center text-sm text-amber-400">
             Blueprint reward offers were not fetched. Press Search again to include them.
           </div>
