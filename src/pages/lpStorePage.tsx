@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import AsyncStatus from "../components/asyncStatus.tsx";
 import AutocompleteSelect from "../components/autocompleteSelect.tsx";
 import Layout from "../components/layout.tsx";
@@ -55,13 +55,6 @@ export default function LpStorePage() {
     boolSearchParam,
   );
 
-  // `execute()` reads this at call time instead of closing over `includeBlueprints` directly, so
-  // that `handleIncludeBlueprintsChange` can force a reload with the not-yet-committed value.
-  const includeBlueprintsRef = useRef(includeBlueprints);
-  useEffect(() => {
-    includeBlueprintsRef.current = includeBlueprints;
-  }, [includeBlueprints]);
-
   const {
     data: rows,
     error,
@@ -69,24 +62,24 @@ export default function LpStorePage() {
     progress,
     timestamp,
     execute,
-  } = useAsyncCallback(({ onProgress }) => {
+  } = useAsyncCallback(({ onProgress }, includeBlueprintsArg: boolean) => {
     if (!selectedCorp) throw new Error("No corporation selected");
     return fetchLpStoreRows(
       selectedCorp.corporation_id,
       regionId,
-      includeBlueprintsRef.current,
+      includeBlueprintsArg,
       onProgress,
     );
   });
 
   const handleSearch = () => {
-    if (selectedCorp) execute();
+    if (selectedCorp) execute(includeBlueprints);
   };
 
   // Immediately search when the page is loaded with an NPC corp already selected via query params.
   useEffect(() => {
     if (!selectedCorp) return;
-    execute();
+    execute(includeBlueprints);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -102,8 +95,7 @@ export default function LpStorePage() {
       (row) => row.blueprintMaterials.length > 0 || row.typeName.endsWith(" Blueprint"),
     );
     if (checked && !hasBlueprintRows && selectedCorp && timestamp) {
-      includeBlueprintsRef.current = checked;
-      execute();
+      execute(checked);
     }
   };
 
