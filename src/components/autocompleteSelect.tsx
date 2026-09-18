@@ -36,6 +36,7 @@ export default function AutocompleteSelect<T extends string | number>({
   placeholder,
   disabled = false,
   className = "",
+  autoFocus = false,
   onChange,
 }: {
   id?: string;
@@ -44,6 +45,7 @@ export default function AutocompleteSelect<T extends string | number>({
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  autoFocus?: boolean;
   onChange: (value: T) => void;
 }) {
   const selectedOption = useMemo(
@@ -91,6 +93,7 @@ export default function AutocompleteSelect<T extends string | number>({
         value={isOpen ? query : selectedLabel}
         disabled={disabled}
         autoComplete="off"
+        autoFocus={autoFocus}
         placeholder={placeholder}
         onFocus={() => {
           setQuery(selectedLabel);
