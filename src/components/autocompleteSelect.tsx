@@ -9,7 +9,7 @@ type SelectOption<T extends string | number> = {
 // large bonus on top of the fuzzy score, so that e.g. searching for "Na" puts labels starting
 // with "Na" before those that merely contain scattered occurrences of "n" and "a".
 const FULL_MATCH_BONUS = 1000;
-const PREFIX_MATCH_BONUS = 1000;
+const PREFIX_MATCH_BONUS = 2000;
 
 const getFuzzyScore = (label: string, query: string): number => {
   const normalizedLabel = label.toLowerCase();
