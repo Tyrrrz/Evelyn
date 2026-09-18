@@ -122,7 +122,7 @@ export default function LpStorePage() {
               placeholder="Select a corporation…"
               disabled={loading}
               className="w-64"
-              autoFocus
+autoFocus={!selectedCorp}
             />
           </div>
           <div>
