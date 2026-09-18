@@ -4,10 +4,9 @@ import AsyncStatus from "../components/asyncStatus.tsx";
 import AutocompleteSelect from "../components/autocompleteSelect.tsx";
 import ItemAppraisalTable from "../components/itemAppraisalTable.tsx";
 import Layout from "../components/layout.tsx";
-import type { AppraisalItem, AppraisalRow } from "../esi/itemAppraisal.ts";
 import { fetchAppraisalRows, parseItemList } from "../esi/itemAppraisal.ts";
 import { DEFAULT_REGION_ID, getRegions } from "../esi/regions.ts";
-import { usePromise } from "../hooks/usePromise.ts";
+import { useAsyncCallback } from "../hooks/useAsyncCallback.ts";
 import { decodeStateFromUrlParam, encodeStateToUrlParam } from "../utils/urlState.ts";
 
 const STATE_PARAM = "items";
@@ -112,21 +111,18 @@ export default function ItemAppraisalPage() {
     const region = initialState?.region;
     return region && regions.some((r) => r.regionId === region) ? region : DEFAULT_REGION_ID;
   });
+  const parsedItems = parseItemList(text);
+
   const {
     data: appraisal,
     error,
     loading,
     progress,
     timestamp,
-    run,
-  } = usePromise<{ rows: AppraisalRow[]; unresolvedNames: string[] }>();
+    execute: evaluate,
+  } = useAsyncCallback((onProgress) => fetchAppraisalRows(parsedItems, regionId, onProgress));
   const rows = appraisal?.rows ?? [];
   const unresolvedNames = appraisal?.unresolvedNames ?? [];
-
-  const parsedItems = parseItemList(text);
-
-  const loadAppraisal = (items: AppraisalItem[], regionId: number) =>
-    run((onProgress) => fetchAppraisalRows(items, regionId, onProgress));
 
   const handleEvaluate = () => {
     if (parsedItems.length === 0) return;
@@ -141,17 +137,15 @@ export default function ItemAppraisalPage() {
       { replace: true },
     );
 
-    loadAppraisal(parsedItems, regionId);
+    evaluate();
   };
 
   // Automatically evaluate items when the page is loaded from a shared link with state.
   useEffect(() => {
     if (!initialState) return;
+    if (parsedItems.length === 0) return;
 
-    const items = parseItemList(initialState.text);
-    if (items.length === 0) return;
-
-    loadAppraisal(items, regionId);
+    evaluate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

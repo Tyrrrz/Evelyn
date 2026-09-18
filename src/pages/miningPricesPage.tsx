@@ -3,10 +3,9 @@ import AsyncStatus from "../components/asyncStatus.tsx";
 import AutocompleteSelect from "../components/autocompleteSelect.tsx";
 import Layout from "../components/layout.tsx";
 import MiningPricesTable from "../components/miningPricesTable.tsx";
-import type { MiningPriceRow } from "../esi/miningPrices.ts";
 import { fetchMiningPriceRows } from "../esi/miningPrices.ts";
 import { DEFAULT_REGION_ID, getRegions } from "../esi/regions.ts";
-import { usePromise } from "../hooks/usePromise.ts";
+import { useAsyncCallback } from "../hooks/useAsyncCallback.ts";
 import { numberSearchParam, useSearchParamState } from "../hooks/useSearchParamState.ts";
 
 export default function MiningPricesPage() {
@@ -21,16 +20,18 @@ export default function MiningPricesPage() {
         : undefined;
     },
   });
-  const { data: rows, error, loading, progress, timestamp, run } = usePromise<MiningPriceRow[]>();
-
-  const loadPrices = (regionId: number) =>
-    run((onProgress) => fetchMiningPriceRows(regionId, onProgress));
-
-  const handleSearch = () => loadPrices(regionId);
+  const {
+    data: rows,
+    error,
+    loading,
+    progress,
+    timestamp,
+    execute: loadPrices,
+  } = useAsyncCallback((onProgress) => fetchMiningPriceRows(regionId, onProgress));
 
   // Load prices for the default (or shared-link) region as soon as the page opens.
   useEffect(() => {
-    loadPrices(regionId);
+    loadPrices();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -44,7 +45,7 @@ export default function MiningPricesPage() {
           className="flex flex-wrap items-end justify-center gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            handleSearch();
+            loadPrices();
           }}
         >
           <div>

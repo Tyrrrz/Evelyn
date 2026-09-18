@@ -1,23 +1,17 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import AsyncStatus from "../components/asyncStatus.tsx";
 import AutocompleteSelect from "../components/autocompleteSelect.tsx";
 import Layout from "../components/layout.tsx";
 import LpStoreTable from "../components/lpStoreTable.tsx";
 import { getCorporations } from "../esi/client.ts";
-import type { LpStoreRow } from "../esi/lpStore.ts";
 import { fetchLpStoreRows } from "../esi/lpStore.ts";
 import { DEFAULT_REGION_ID, getRegions } from "../esi/regions.ts";
-import { usePromise } from "../hooks/usePromise.ts";
+import { useAsyncCallback } from "../hooks/useAsyncCallback.ts";
 import {
   boolSearchParam,
   numberSearchParam,
   useSearchParamState,
 } from "../hooks/useSearchParamState.ts";
-
-interface Corporation {
-  corporation_id: number;
-  name: string;
-}
 
 export default function LpStorePage() {
   const corporations = useMemo(() => getCorporations(), [getCorporations]);
@@ -40,12 +34,6 @@ export default function LpStorePage() {
         : undefined;
     },
   });
-  const { data: rows, error, loading, progress, timestamp, run } = usePromise<LpStoreRow[]>();
-
-  const loadLpStoreData = (corp: Corporation, regionId: number, withBlueprints: boolean) =>
-    run((onProgress) =>
-      fetchLpStoreRows(corp.corporation_id, regionId, withBlueprints, onProgress),
-    );
   const [includeOtherItems, setIncludeOtherItems] = useSearchParamState(
     "includeOtherItems",
     true,
@@ -67,15 +55,39 @@ export default function LpStorePage() {
     boolSearchParam,
   );
 
+  // `execute()` reads this at call time instead of closing over `includeBlueprints` directly, so
+  // that `handleIncludeBlueprintsChange` can force a reload with the not-yet-committed value.
+  const includeBlueprintsRef = useRef(includeBlueprints);
+  useEffect(() => {
+    includeBlueprintsRef.current = includeBlueprints;
+  }, [includeBlueprints]);
+
+  const {
+    data: rows,
+    error,
+    loading,
+    progress,
+    timestamp,
+    execute: loadLpStoreData,
+  } = useAsyncCallback((onProgress) => {
+    if (!selectedCorp) throw new Error("No corporation selected");
+    return fetchLpStoreRows(
+      selectedCorp.corporation_id,
+      regionId,
+      includeBlueprintsRef.current,
+      onProgress,
+    );
+  });
+
   const handleSearch = () => {
-    if (selectedCorp) loadLpStoreData(selectedCorp, regionId, includeBlueprints);
+    if (selectedCorp) loadLpStoreData();
   };
 
   // Immediately search when the page is loaded with an NPC corp already selected via query params.
   useEffect(() => {
     if (!selectedCorp) return;
     const timeoutId = setTimeout(() => {
-      loadLpStoreData(selectedCorp, regionId, includeBlueprints);
+      loadLpStoreData();
     }, 0);
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -93,7 +105,8 @@ export default function LpStorePage() {
       (row) => row.blueprintMaterials.length > 0 || row.typeName.endsWith(" Blueprint"),
     );
     if (checked && !hasBlueprintRows && selectedCorp && timestamp) {
-      loadLpStoreData(selectedCorp, regionId, checked);
+      includeBlueprintsRef.current = checked;
+      loadLpStoreData();
     }
   };
 

@@ -1,12 +1,12 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 /** `data` and `error` are mutually exclusive: only one of them can be non-null at a time. */
-type PromiseState<T> =
+type AsyncCallbackState<T> =
   | { data: null; error: null; loading: boolean; progress: number | null; timestamp: null }
   | { data: T; error: null; loading: false; progress: null; timestamp: Date }
   | { data: null; error: string; loading: false; progress: null; timestamp: null };
 
-const idleState: PromiseState<never> = {
+const idleState: AsyncCallbackState<never> = {
   data: null,
   error: null,
   loading: false,
@@ -15,17 +15,22 @@ const idleState: PromiseState<never> = {
 };
 
 /**
- * Runs an async task and tracks its `data`/`error`/`loading`/`progress` state, deriving
- * `timestamp` from the moment `data` is set on success.
+ * Wraps an async task in a stable `execute()` callback and tracks its
+ * `data`/`error`/`loading`/`progress` state, deriving `timestamp` from the moment `data` is set
+ * on success.
  *
- * Unlike `useMemo`, the task is only ever run imperatively via the returned `run(...)` function —
- * it never re-runs automatically just because some value changed. Callers that need to
- * auto-trigger a run (e.g. once on mount from URL state) should do so from their own effect.
+ * `execute()` is a no-op while a previous call is still in flight, so overlapping calls (e.g. a
+ * dev-mode double-invoke, or a user triggering search twice in a row) can't race to set state
+ * from whichever promise settles last.
  */
-export function usePromise<T>() {
-  const [state, setState] = useState<PromiseState<T>>(idleState);
+export function useAsyncCallback<T>(task: (onProgress: (fraction: number) => void) => Promise<T>) {
+  const [state, setState] = useState<AsyncCallbackState<T>>(idleState);
+  const loadingRef = useRef(false);
 
-  const run = useCallback((task: (onProgress: (fraction: number) => void) => Promise<T>) => {
+  const execute = useCallback(() => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+
     setState({ data: null, error: null, loading: true, progress: null, timestamp: null });
 
     task((fraction) => {
@@ -42,8 +47,11 @@ export function usePromise<T>() {
           progress: null,
           timestamp: null,
         });
+      })
+      .finally(() => {
+        loadingRef.current = false;
       });
-  }, []);
+  }, [task]);
 
-  return { ...state, run };
+  return { ...state, execute };
 }
