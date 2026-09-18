@@ -86,10 +86,7 @@ export default function LpStorePage() {
   // Immediately search when the page is loaded with an NPC corp already selected via query params.
   useEffect(() => {
     if (!selectedCorp) return;
-    const timeoutId = setTimeout(() => {
-      execute();
-    }, 0);
-    return () => clearTimeout(timeoutId);
+    execute();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
