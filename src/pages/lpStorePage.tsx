@@ -85,19 +85,17 @@ export default function LpStorePage() {
 
   const handleIncludeBlueprintsChange = (checked: boolean) => {
     if (loading) return;
-
     setIncludeBlueprints(checked);
-
-    // Blueprint reward offers are only ever included in `rows` when the previous fetch requested
-    // them, so unchecking never requires a reload (blueprint rows are simply filtered out below),
-    // and checking only requires one if the currently-loaded data doesn't already have them.
-    const hasBlueprintRows = (rows ?? []).some(
-      (row) => row.blueprintMaterials.length > 0 || row.typeName.endsWith(" Blueprint"),
-    );
-    if (checked && !hasBlueprintRows && selectedCorp && timestamp) {
-      execute(checked);
-    }
   };
+
+  // Blueprint reward offers are only ever included in `rows` when the previous fetch requested
+  // them, so unchecking never requires a reload (blueprint rows are simply filtered out below),
+  // but checking requires one if the currently-loaded data doesn't already have them.
+  const hasBlueprintRows = (rows ?? []).some(
+    (row) => row.blueprintMaterials.length > 0 || row.typeName.endsWith(" Blueprint"),
+  );
+  const showBlueprintsNotFetchedWarning =
+    includeBlueprints && !loading && timestamp !== null && !hasBlueprintRows;
 
   const filteredRows = (rows ?? []).filter(
     (row) =>
@@ -213,6 +211,12 @@ export default function LpStorePage() {
         timestamp={timestamp}
         summary={`${filteredRows.length} offers`}
       />
+
+      {showBlueprintsNotFetchedWarning && (
+        <div className="mb-4 text-center text-sm text-amber-400">
+          Blueprint reward offers were not fetched. Press Search again to include them.
+        </div>
+      )}
 
       {filteredRows.length > 0 && <LpStoreTable rows={filteredRows} />}
 
