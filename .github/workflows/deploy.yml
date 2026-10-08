@@ -24,17 +24,17 @@ jobs:
       - name: Install NodeJS
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
 
-      - name: Enable Corepack
-        run: corepack enable
+      - name: Install pnpm
+        run: npm install --global --allow-scripts=pnpm pnpm@12.10.1
 
       - name: Install dependencies
-        run: yarn install --immutable
+        run: pnpm install --frozen-lockfile
 
       - name: Verify formatting
-        run: yarn run format:check
+        run: pnpm run format:check
 
       - name: Perform linting
-        run: yarn run lint:check
+        run: pnpm run lint:check
 
   pack:
     runs-on: ubuntu-latest
@@ -54,21 +54,21 @@ jobs:
       - name: Install NodeJS
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
 
-      - name: Enable Corepack
-        run: corepack enable
+      - name: Install pnpm
+        run: npm install --global --allow-scripts=pnpm pnpm@12.10.1
 
       - name: Install dependencies
-        run: yarn install --immutable
+        run: pnpm install --frozen-lockfile
 
       - name: Generate static data
-        run: yarn generate-data
+        run: pnpm run generate-data
 
       - name: Build site
         env:
           BUILD_ID: ${{ github.sha }}
           SITE_URL: ${{ steps.configure-pages.outputs.base_url }}
           GOATCOUNTER_URL: ${{ secrets.GOATCOUNTER_URL }}
-        run: yarn build
+        run: pnpm run build
 
       - name: Upload GitHub Pages assets
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
